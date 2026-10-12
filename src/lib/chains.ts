@@ -6,6 +6,8 @@ import {
   baseSepolia,
   hyperEvm,
   hyperliquidEvmTestnet,
+  monad,
+  monadTestnet,
 } from "viem/chains";
 
 /**
@@ -18,7 +20,7 @@ import {
  *   USDC: https://developers.circle.com/stablecoins/usdc-contract-addresses
  *   USDG: https://docs.paxos.com/guides/stablecoin/usdg/mainnet (and /testnet)
  */
-export type ChainFamily = "arbitrum" | "base" | "hyperliquid";
+export type ChainFamily = "arbitrum" | "base" | "hyperliquid" | "monad";
 
 export type ChainPreset = {
   /** CAIP-2 id, e.g. `eip155:8453`. */
@@ -55,6 +57,11 @@ export const USDG_ARBITRUM_SEPOLIA = "0xFFC95faa3d63Cde504a05B567C600B78C0b41892
 /** Paxos Global Dollar (USDG, EIP-3009) on Arbitrum One. */
 export const USDG_ARBITRUM_ONE = "0x004B506865409877C9fA29bfb1ebA929984B9bbC";
 
+/** Circle native USDC on Monad Testnet. */
+export const USDC_MONAD_TESTNET = "0x534b2f3A21130d7a60830c2Df862319e593943A3";
+/** Circle native USDC on Monad mainnet. */
+export const USDC_MONAD = "0x754704Bc059F8C67012fEd69BC8A327a5aafb603";
+
 /** EIP-712 domain shared by every Paxos USDG deployment. */
 export const USDG_EIP712 = { name: "Global Dollar", version: "1" } as const;
 
@@ -85,6 +92,21 @@ const usdc = (token: string, tokenEip712Name: string) => ({
 });
 
 const PRESETS: ChainPreset[] = [
+  // Monad: 400 ms blocks and Circle-native USDC. Gas is MON, paid by the relayer.
+  preset(monadTestnet, "monad", {
+    label: "Monad Testnet",
+    rpcUrl: "https://testnet-rpc.monad.xyz",
+    explorerBase: "https://testnet.monadscan.com",
+    ...usdc(USDC_MONAD_TESTNET, "USDC"),
+    usdg: "",
+  }),
+  preset(monad, "monad", {
+    label: "Monad",
+    rpcUrl: "https://rpc.monad.xyz",
+    explorerBase: "https://monadscan.com",
+    ...usdc(USDC_MONAD, "USDC"),
+    usdg: "",
+  }),
   // Arbitrum: where Borneo started, and where BorneoCheckout is deployed.
   preset(arbitrumSepolia, "arbitrum", {
     label: "Arbitrum Sepolia",
