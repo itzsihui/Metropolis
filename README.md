@@ -143,7 +143,7 @@ An order settles once, on one chain. The server verifies against its own require
 - **On-chain fee split + XPoints.** `fee = amount × feeBps / 10 000` (hard cap 10%) goes to the treasury, the rest to the merchant in the same tx; the payer's `xpoints` accrue 1:1 with fee units. The contract never holds a balance after settlement; a balance-delta check guards against non-standard tokens.
 - **Ops safety.** `Ownable2Step`, `Pausable`, `ReentrancyGuard`, `SafeERC20`, token allowlist, custom errors, `sweep` for stray tokens.
 
-**Tests:** 29 Foundry tests including a 1 000-run fuzz (value conservation) against a mock EIP-3009 token, covering redirect, recomputed nonce, amount/token swap, random nonce, double settle, front-running, expiry, wrong payer, cross-chain replay, per-chain token allowlists, pause and admin paths, plus **fork tests that settle through the real Arbitrum Sepolia USDC and Paxos USDG contracts**. `npm test` adds 14 offline tests for the chain registry, per-chain 402 entries and signatures.
+**Tests:** 29 Foundry tests including a 1 000-run fuzz (value conservation) against a mock EIP-3009 token, covering redirect, recomputed nonce, amount/token swap, random nonce, double settle, front-running, expiry, wrong payer, cross-chain replay, per-chain token allowlists, pause and admin paths, plus **fork tests that settle through the real Arbitrum Sepolia USDC and Paxos USDG contracts**. `npm test` adds offline tests for the chain registry, per-chain 402 entries and signatures, the passkey session scope and the Alchemy webhook.
 
 ```bash
 cd contracts
@@ -162,22 +162,24 @@ End-to-end against a running server: `npx tsx --env-file=.env scripts/e2e-checko
 ```bash
 npm install
 cp .env.example .env
-# Fill BUYER_PRIVATE_KEY, MERCHANT_ADDRESS, Firebase, OPENAI
-# Fund the buyer with testnet USDC, and the relayer with a little gas, on each chain you enable
-# See docs/chains.md (all chains) and scripts/setup-arbitrum-usdc.md (Arbitrum walkthrough)
+# Monad: deploy BorneoCheckout, fund the relayer with MON (docs/monad.md)
+# Optional keys: AURORA_INTENTS_API_KEY, ENVIO_GRAPHQL_URL, ALCHEMY_API_KEY, NEXT_PUBLIC_PRIVY_APP_ID
 npm run chains:check   # preflight: RPC, token, EIP-712 domain, checkout, relayer gas
-npm run dev
+npm run dev            # passkeys need HTTPS or localhost
 ```
 
 | Path | What it is |
 |---|---|
 | `/` | Landing — intent → route → settle → earn |
+| `/buyer/login` | One-prompt passkey sign-in (Mera) |
+| `/buyer` | Intent chat → passkey-signed USDC on Monad / Visa |
+| `/buyer/fund` | Any-chain top-up (Aurora Intents) |
+| `/buyer/activity` | Local ledger + on-chain orders (Envio) |
+| `/buyer/xpoints` | XPoints balance, on-chain XPoints, invite loop |
+| `/merchant/setup` | Privy payout wallet, Visa receive, governance |
 | `/merchant` · `/onboard` | Seller chat → publish agent storefront |
-| `/buyer` | Intent chat → route preview → USDC / Visa |
-| `/buyer/xpoints` | XPoints balance + friend invite loop |
-| `/market` | Marketplace index (fashion + RWA desk) |
-| `/api/search?q=` | Intent search |
-| `/api/liquidity?price=` | Liquidity route preview |
+| `/dashboard` | Merchant orders + on-chain sales (Envio) |
+| `/market` | Marketplace index |
 | `/registry.json` | Network store index |
 | `/demo` | Judge handshake script |
 
@@ -185,24 +187,28 @@ npm run dev
 
 | Var | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | Agents + embeddings search |
-| `NEXT_PUBLIC_FIREBASE_*` | Buyer + merchant auth |
-| `CHAIN_NETWORK` | Primary chain. `eip155:421614` (Arbitrum Sepolia, default), `eip155:42161`, `eip155:84532`, `eip155:8453` (Base), `eip155:998`, `eip155:999` (HyperEVM). Labels such as `base-sepolia` also work |
-| `SETTLE_NETWORKS` | Extra chains to accept on the same 402, comma-separated, e.g. `base-sepolia,hyperevm-testnet` |
-| `BUYER_NETWORK` | Chain the buyer agent prefers. Unset: first accepted chain where it holds enough |
-| `BUYER_PRIVATE_KEY` | Server-side x402 signing |
-| `FACILITATOR_PRIVATE_KEY` | Optional relayer for settlement gas (defaults to buyer key). Needs ETH on Arbitrum and Base, HYPE on HyperEVM |
+| `CHAIN_NETWORK` | Primary chain. `eip155:10143` (Monad Testnet, default) or `eip155:143` (Monad). Arbitrum, Base and HyperEVM ids also work; labels such as `monad-testnet` too |
+| `SETTLE_NETWORKS` | Extra chains on the same 402, comma-separated |
+| `CHECKOUT_ADDRESS_<chainId>` | BorneoCheckout per chain, e.g. `CHECKOUT_ADDRESS_10143` |
+| `FACILITATOR_PRIVATE_KEY` | Relayer that submits settlements. Needs MON on Monad |
+| `BUYER_PRIVATE_KEY` | Server agent wallet, used only when `NEXT_PUBLIC_BUYER_ACCOUNTS=firebase` |
 | `MERCHANT_ADDRESS` | Default merchant payTo (`0x…`) |
-| `CHECKOUT_ADDRESS_<chainId>` | BorneoCheckout on that chain, e.g. `CHECKOUT_ADDRESS_84532`. When set, x402 payments there settle through it. `CHECKOUT_ADDRESS` still works for the primary chain |
-| `RPC_URL_<chainId>` | RPC override for a non-primary chain (`RPC_URL` for the primary) |
-| `ALT_SETTLE_TOKEN` / `ALT_SETTLE_SYMBOL` | Second settle asset (defaults to Paxos USDG) |
-| `PROTOCOL_FEE_BPS` | Fee in bps (default `50`); match the contract's `feeBps` |
-| `TREASURY_ADDRESS` | Fee recipient (the checkout's `treasury`) |
+| `NEXT_PUBLIC_BUYER_ACCOUNTS` | `passkey` (default, Mera) or `firebase` (email sign-in + server agent wallet) |
+| `AURORA_INTENTS_API_KEY` | Aurora Intents Swap API key (studio.aurora.dev) |
+| `ENVIO_GRAPHQL_URL` | GraphQL endpoint of the deployed `indexer/` |
+| `ALCHEMY_API_KEY` | Alchemy RPC for Monad, Arbitrum and Base |
+| `ALCHEMY_WEBHOOK_SIGNING_KEY` · `ALCHEMY_WEBHOOK_ID` · `ALCHEMY_NOTIFY_TOKEN` | Address Activity webhook for top-up arrivals |
+| `NEXT_PUBLIC_PRIVY_APP_ID` · `NEXT_PUBLIC_PRIVY_SPONSOR_GAS` | Privy merchant payout wallets |
+| `OPENAI_API_KEY` | Agents + embeddings search |
+| `NEXT_PUBLIC_FIREBASE_*` | Merchant auth and store sync |
+| `PROTOCOL_FEE_BPS` · `TREASURY_ADDRESS` | Protocol fee (match the contract) and recipient |
 
 ### Contract / asset references
 
 | Asset | Address |
 |---|---|
+| USDC (Monad Testnet) | `0x534b2f3A21130d7a60830c2Df862319e593943A3` |
+| USDC (Monad) | [`0x754704Bc059F8C67012fEd69BC8A327a5aafb603`](https://monadscan.com/token/0x754704Bc059F8C67012fEd69BC8A327a5aafb603) |
 | USDC (Arbitrum Sepolia) | [`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`](https://sepolia.arbiscan.io/token/0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d) |
 | USDC (Arbitrum One) | [`0xaf88d065e77c8cC2239327C5EDb3A432268e5831`](https://arbiscan.io/token/0xaf88d065e77c8cC2239327C5EDb3A432268e5831) |
 | USDC (Base Sepolia) | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/token/0x036CbD53842c5426634e7929541eC2318f3dCF7e) |
@@ -214,7 +220,7 @@ npm run dev
 | BorneoCheckout (Arbitrum Sepolia) | [`0xf8188490C10d0248DBB27bD1A07F8a7b4f0e9fc4`](https://sepolia.arbiscan.io/address/0xf8188490C10d0248DBB27bD1A07F8a7b4f0e9fc4) |
 | BorneoCheckout (Base Sepolia) | [`0x3aD9d36Fd382162E206415fF1736E78bF8326d28`](https://sepolia.basescan.org/address/0x3aD9d36Fd382162E206415fF1736E78bF8326d28) |
 | BorneoCheckout (HyperEVM Testnet) | [`0x3aD9d36Fd382162E206415fF1736E78bF8326d28`](https://crypto-worlds-fair.vercel.app/explorer/998/address/0x3aD9d36Fd382162E206415fF1736E78bF8326d28) |
-| Explorer | `https://sepolia.arbiscan.io` |
+| Explorer (Monad Testnet) | `https://testnet.monadscan.com` |
 
 ### Scripts
 
@@ -228,16 +234,16 @@ npm run dev
 
 ---
 
-## Submission checklist (Crypto World's Fair)
+## Submission checklist (Monad Metropolis)
 
 - [ ] Public repo + this README
-- [ ] Live product URL
-- [ ] Presentation video (2–3 min) and product demo video (up to 3 min): intent → route → settle USDC → earn XPoints, paying on more than one chain
-- [x] Smart contract deployed on Arbitrum Sepolia, tested (unit + fuzz + fork) and verified
-- [x] Arbiscan links for settled purchases (see Smart contract section)
-- [x] BorneoCheckout deployed on Base Sepolia and HyperEVM Testnet; `npm run chains:check` passes on all three chains
-- [x] Settled purchase on Base Sepolia and on HyperEVM Testnet
+- [ ] Live product link (HTTPS, so passkeys work)
+- [ ] Technical demo video and pitch video
+- [ ] BorneoCheckout deployed on Monad (testnet and/or mainnet) and `npm run chains:check` passing
+- [ ] Settled passkey purchase on Monad with explorer link
+- [ ] Live Aurora top-up: funds from another chain arrive and complete an order
+- [ ] Envio indexer deployed, `ENVIO_GRAPHQL_URL` set, history rebuilt after clearing storage
 - [ ] Prior work disclosed in the submission form
-- [ ] Submit before Oct 12, 2026 11:59pm PT
+- [ ] Submit before Oct 14, 2026 11:59 GMT+8
 
-See [`docs/submission.md`](./docs/submission.md) for the track mapping and shot list.
+See [`docs/submission.md`](./docs/submission.md) for the track and bounty write-ups.
