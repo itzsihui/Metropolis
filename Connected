@@ -1,0 +1,12 @@
+  Inspect         https://vercel.com/itzsihuis-projects/metropolis/BHswe1BrA1yNZ9exWqGQtA
+  Product  Product  Product  Product  Producp7-itzsihuis-projects.vercel.app
+▲ Aliased         https://metropolis-hazel.vercel.app
+
+✓ y in 3m
+
+Next steps:
+- Check the deployment re- Chec:
+  vercel curl https://metropolis-oykedf3p7-itzsihuis-projects.vercel.app
+- View build logs:
+  vercel inspect metropolis-oykedf3p7-itzsihuis-projects.vercel.app --logs
+- Create a new deployment from the same source:
