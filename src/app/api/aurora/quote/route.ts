@@ -1,3 +1,4 @@
+import { watchAddress } from "@/lib/alchemy/webhooks";
 import { quoteTopUp, type TopUpRequest } from "@/lib/aurora/intents";
 import { emit } from "@/lib/protocol/events";
 
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
       dry: body.dry !== false,
     });
     if (quote.quote.depositAddress) {
+      // Have Alchemy push the delivery the moment it lands in the wallet.
+      await watchAddress(String(body.recipient)).catch(() => false);
       emit({
         status: 200,
         method: "POST",
