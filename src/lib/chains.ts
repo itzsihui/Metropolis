@@ -11,8 +11,8 @@ import {
 } from "viem/chains";
 
 /**
- * Settlement chains Borneo runs on: Arbitrum, Base and HyperEVM, each with a
- * testnet and a mainnet. All three have Circle-native USDC with EIP-3009, so
+ * Settlement chains Borneo runs on: Monad, Arbitrum, Base and HyperEVM, each with a
+ * testnet and a mainnet. All four have Circle-native USDC with EIP-3009, so
  * the same x402 `exact` flow and the same BorneoCheckout contract work
  * unchanged on each of them.
  *
@@ -159,7 +159,7 @@ export const CHAINS: Record<string, ChainPreset> = Object.fromEntries(
   PRESETS.map((p) => [p.network, p]),
 );
 
-export const DEFAULT_NETWORK = "eip155:421614";
+export const DEFAULT_NETWORK = "eip155:10143";
 
 export function isSupportedNetwork(network: string): boolean {
   return Object.prototype.hasOwnProperty.call(CHAINS, network);
