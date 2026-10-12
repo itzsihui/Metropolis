@@ -336,8 +336,11 @@ export async function ensureSettleLiquidity(args: {
   execute?: boolean;
   toTokenAddress?: string;
   toSymbol?: string;
+  /** The shopper's own wallet (passkey). Preview only: nothing is executed for it. */
+  buyerAddress?: `0x${string}`;
 }): Promise<LiquidityRouteResult> {
   const quantity = Math.max(1, args.quantity ?? 1);
+  const execute = args.execute && !args.buyerAddress;
   const toTokenAddress = (args.toTokenAddress || config.tokenAddress).trim();
   const toSymbol = (args.toSymbol || config.tokenSymbol).trim();
   let neededAtomic: bigint;
@@ -355,7 +358,7 @@ export async function ensureSettleLiquidity(args: {
 
   const balances = await readBuyerBalances(
     neededAtomic.toString(),
-    undefined,
+    args.buyerAddress,
     toTokenAddress,
   );
   if (!balances) {
@@ -378,7 +381,7 @@ export async function ensureSettleLiquidity(args: {
       executed: false,
       message: balances.hasEnoughToken
         ? `${toSymbol} balance ${balances.tokenHuman} covers purchase on ${config.chainLabel}`
-        : `Need ${formatUnits(BigInt(balances.shortfallAtomic), config.tokenDecimals)} more ${toSymbol} on ${config.chainLabel}. Auto-swap is only available on Arbitrum, so fund the wallet directly.`,
+        : `Need ${formatUnits(BigInt(balances.shortfallAtomic), config.tokenDecimals)} more ${toSymbol} on ${config.chainLabel}. Top up from any chain with Aurora Intents at checkout.`,
     };
   }
 
@@ -401,7 +404,7 @@ export async function ensureSettleLiquidity(args: {
 
   const shortfall = BigInt(balances.shortfallAtomic);
   const quote = await quoteNativeToToken(shortfall, toTokenAddress, toSymbol);
-  if (!args.execute) {
+  if (!execute) {
     return {
       needed: true,
       balances,
