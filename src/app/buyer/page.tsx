@@ -56,6 +56,7 @@ import {
 import { formatFlagSummary, discoverFashionPicks } from "./_lib/discover-client";
 import { settleStablecoinQuote } from "./_lib/passkey-checkout";
 import { fundingHref } from "./_lib/funding";
+import { saveResumableOrder, takeResumableOrder } from "./_lib/resume-order";
 import { useBuyerAuth } from "./_components/buyer-auth-provider";
 import { usePasskeyWallet } from "./_components/passkey-wallet-provider";
 import type { SalespersonResult } from "./_lib/salesperson";
@@ -1067,6 +1068,7 @@ export default function BuyerPage() {
               paymentSteps.push(finished);
 
               if (failed) {
+                if (data.funding) saveResumableOrder(lines);
                 const errStep = (data.steps ?? []).find((s) => s.type === "error");
                 throw new Error(
                   errStep?.text || data.error || "x402 settlement failed",
@@ -1233,6 +1235,21 @@ export default function BuyerPage() {
     },
     [auth.mode, wallet.address, wallet.signTypedData],
   );
+
+  // Back from an any-chain top-up: finish the order that was short.
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || !wallet.address) return;
+    if (new URLSearchParams(window.location.search).get("resume") !== "1") return;
+    resumed.current = true;
+    const lines = takeResumableOrder<MarketProductPick & { quantity: number }>();
+    window.history.replaceState(null, "", "/buyer");
+    if (!lines?.length) return;
+    // Deferred, and deliberately not cancelled: the order must run once.
+    setTimeout(() => {
+      void settleProducts(lines, "stablecoin", { clearCart: false, closeDetail: true });
+    }, 0);
+  }, [wallet.address, settleProducts]);
 
   const authorizePurchaseSingle = useCallback(async () => {
     const product = selectedPick(state);
