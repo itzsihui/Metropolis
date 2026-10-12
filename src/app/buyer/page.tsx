@@ -54,6 +54,10 @@ import {
   type ChatThreadsStore,
 } from "./_lib/chat-threads";
 import { formatFlagSummary, discoverFashionPicks } from "./_lib/discover-client";
+import { settleStablecoinQuote } from "./_lib/passkey-checkout";
+import { fundingHref } from "./_lib/funding";
+import { useBuyerAuth } from "./_components/buyer-auth-provider";
+import { usePasskeyWallet } from "./_components/passkey-wallet-provider";
 import type { SalespersonResult } from "./_lib/salesperson";
 
 const META_ROLE = "buyer-flow-meta";
@@ -112,6 +116,8 @@ function parseSessionMeta(
 }
 
 export default function BuyerPage() {
+  const auth = useBuyerAuth();
+  const wallet = usePasskeyWallet();
   const [hydrated, setHydrated] = useState(false);
   const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const [state, setState] = useState<BuyerFlowState>(() =>
@@ -994,34 +1000,19 @@ export default function BuyerPage() {
 
           for (let q = 0; q < line.quantity; q++) {
             if (rail === "stablecoin") {
-              const res = await fetch("/api/buyer-agent", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                  buyerUid: getBuyerCloudSyncUid() || undefined,
-                  quote: {
-                    storeSlug: quote.storeSlug,
-                    skuId: quote.skuId,
-                    price: quote.price,
-                    merchantAddress: quote.merchantAddress,
-                    settleAsset: quote.settleAsset,
-                    settleSymbol: quote.settleSymbol,
-                  },
-                }),
+              const data = await settleStablecoinQuote({
+                buyerUid: getBuyerCloudSyncUid() || undefined,
+                buyerAddress: auth.mode === "passkey" ? wallet.address : undefined,
+                sign: auth.mode === "passkey" ? wallet.signTypedData : undefined,
+                quote: {
+                  storeSlug: quote.storeSlug,
+                  skuId: quote.skuId,
+                  price: quote.price,
+                  merchantAddress: quote.merchantAddress,
+                  settleAsset: quote.settleAsset,
+                  settleSymbol: quote.settleSymbol,
+                },
               });
-              const data = (await res.json()) as {
-                steps?: Array<{ type: string; text: string }>;
-                error?: string;
-                receipt?: {
-                  explorerUrl?: string;
-                  orderId?: string;
-                  ownershipPoints?: number;
-                  grossAtomic?: string;
-                  feeAtomic?: string;
-                  swapExplorerUrl?: string;
-                  routeSummary?: string;
-                };
-              };
               const failed =
                 (data.steps ?? []).some((s) => s.type === "error") ||
                 !(data.steps ?? []).some((s) => s.type === "success");
@@ -1065,7 +1056,9 @@ export default function BuyerPage() {
                 protocolLines,
                 links: explorer
                   ? [{ label: "View on block explorer", href: explorer }]
-                  : undefined,
+                  : data.funding
+                    ? [{ label: "Top up from any chain", href: fundingHref(data.funding) }]
+                    : undefined,
               };
               setState((prev) => ({
                 ...prev,
@@ -1238,7 +1231,7 @@ export default function BuyerPage() {
         }));
       }
     },
-    [],
+    [auth.mode, wallet.address, wallet.signTypedData],
   );
 
   const authorizePurchaseSingle = useCallback(async () => {
