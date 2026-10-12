@@ -97,7 +97,9 @@ export async function POST(request: Request) {
         `Intent → liquidity route → HTTP 402 → ${config.tokenSymbol} on ${settleChainsLabel()} → XPoints`,
       straitsx: "Scoped virtual card mandate → checkout → burn",
       aws: "Bedrock agents + API Gateway/Lambda/DynamoDB protocol slice",
-      routing: `Uniswap V3 quote on Arbitrum One + in-process x402 facilitator settling ${config.tokenSymbol} on ${settleChainsLabel()}`,
+      routing: config.isArbitrum
+        ? `Uniswap V3 quote on Arbitrum One + in-process x402 facilitator settling ${config.tokenSymbol} on ${settleChainsLabel()}`
+        : `Aurora Intents any-chain top-ups into a passkey wallet + in-process x402 facilitator settling ${config.tokenSymbol} on ${settleChainsLabel()}`,
     },
     merchant,
     x402,
