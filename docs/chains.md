@@ -1,9 +1,11 @@
 # Settlement chains
 
-Borneo settles x402 payments on three ecosystems. One codebase, one `BorneoCheckout` contract and one relayer key serve all of them.
+Borneo settles x402 payments on four ecosystems. Monad is the primary chain (see [monad.md](./monad.md)). One codebase, one `BorneoCheckout` contract and one relayer key serve all of them.
 
 | Chain | Network | Chain ID | Gas | Settle token | Explorer |
 |---|---|---|---|---|---|
+| Monad Testnet | `eip155:10143` | 10143 | MON | USDC `0x534b2f3A21130d7a60830c2Df862319e593943A3` | testnet.monadscan.com |
+| Monad | `eip155:143` | 143 | MON | USDC `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` | monadscan.com |
 | Arbitrum Sepolia | `eip155:421614` | 421614 | ETH | USDC `0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`, USDG `0xFFC95faa3d63Cde504a05B567C600B78C0b41892` | sepolia.arbiscan.io |
 | Arbitrum One | `eip155:42161` | 42161 | ETH | USDC `0xaf88d065e77c8cC2239327C5EDb3A432268e5831`, USDG `0x004B506865409877C9fA29bfb1ebA929984B9bbC` | arbiscan.io |
 | Base Sepolia | `eip155:84532` | 84532 | ETH | USDC `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | sepolia.basescan.org |
@@ -13,7 +15,9 @@ Borneo settles x402 payments on three ecosystems. One codebase, one `BorneoCheck
 
 The registry lives in [`src/lib/chains.ts`](../src/lib/chains.ts); the contract-side allowlist mirrors it in [`contracts/script/SettleTokens.sol`](../contracts/script/SettleTokens.sol). USDC addresses are from [Circle's contract list](https://developers.circle.com/stablecoins/usdc-contract-addresses), USDG from [Paxos](https://docs.paxos.com/guides/stablecoin/usdg/mainnet).
 
-## Why these three
+## Why these chains
+
+- **Monad** is the primary chain: 400 ms blocks and Circle-native USDC with EIP-3009, so passkey-signed payments settle almost as soon as the shopper confirms.
 
 - **Arbitrum** is where Borneo started. The checkout is deployed and verified there, and the Uniswap route quote and ETH gas bridge are Arbitrum features.
 - **Base** is the home chain of x402, so any existing x402 agent can pay a Borneo store there without changes.
@@ -25,7 +29,7 @@ All three use 6-decimal USDC, so a SKU priced `0.02` costs `20000` atomic units 
 
 ```bash
 # Primary chain: drives the UI labels, the liquidity panel and the default 402 entry.
-CHAIN_NETWORK=eip155:421614
+CHAIN_NETWORK=eip155:10143
 
 # Extra chains offered in the same 402. Ids, chain ids or labels all work.
 SETTLE_NETWORKS=base-sepolia,hyperevm-testnet
@@ -85,7 +89,7 @@ Funding per chain:
 | Wallet | Needs |
 |---|---|
 | Buyer (`BUYER_PRIVATE_KEY`) | USDC on the chain it pays on. Testnet USDC: [faucet.circle.com](https://faucet.circle.com). No gas |
-| Relayer (`FACILITATOR_PRIVATE_KEY`, or the buyer key) | A little gas on every enabled chain: ETH on Arbitrum and Base, HYPE on HyperEVM |
+| Relayer (`FACILITATOR_PRIVATE_KEY`, or the buyer key) | A little gas on every enabled chain: MON on Monad, ETH on Arbitrum and Base, HYPE on HyperEVM |
 | Deployer | Gas on the chain being deployed to |
 
 ## Preflight
