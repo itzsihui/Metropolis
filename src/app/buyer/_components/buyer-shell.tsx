@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/site-header";
 import { readBuyerAccount } from "@/lib/buyer-account";
 import { cn } from "@/lib/utils";
+import { config } from "@/lib/config";
 import { useBuyerAuth } from "./buyer-auth-provider";
 import { usePasskeyWallet } from "./passkey-wallet-provider";
 import { PasskeyWalletChip } from "./passkey-wallet-chip";
@@ -15,10 +16,12 @@ const NAV = [
   { href: "/market", label: "Market" },
   { href: "/buyer/activity", label: "Activity" },
   { href: "/buyer/xpoints", label: "XPoints" },
-  { href: "/buyer/gas", label: "Gas" },
+  { href: "/buyer/fund", label: "Top up" },
+  // The ETH gas bridge only exists on Arbitrum.
+  ...(config.isArbitrum ? [{ href: "/buyer/gas", label: "Gas" }] : []),
   { href: "/buyer/profile", label: "Profile" },
   { href: "/buyer/governance", label: "Governance" },
-] as const;
+] as Array<{ href: string; label: string; exact?: boolean }>;
 
 function isActive(pathname: string, href: string, exact?: boolean) {
   if (exact) return pathname === href;
@@ -144,7 +147,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
               const active = isActive(
                 pathname,
                 item.href,
-                "exact" in item && item.exact,
+                item.exact,
               );
               return (
                 <Link
