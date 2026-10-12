@@ -1,81 +1,88 @@
-# Crypto World's Fair — submission pack
+# Monad Metropolis submission notes
 
-**Hackathon:** Sep 14 – Oct 12, 2026, 11:59pm PT (Colosseum) · https://colosseum.com/hackathon
-**Winners announced:** by Dec 5, 2026
-**Tracks this project integrates with:** Arbitrum, Base, Hyperliquid (HyperEVM)
+**Project:** Borneo — an AI shopping agent that pays any store in USDC on Monad, with a passkey as the whole account.
+**Main track:** Consumer Products & Payments.
+**Deadline:** Oct 14, 2026, 11:59 GMT+8.
 
-## What to submit
+## One-liner
 
-Colosseum asks for the items below. Fill the bracketed parts before submitting.
+Tell the agent what you want; it finds it, and pays the store over HTTP 402 in USDC on Monad. Sign up is one passkey prompt, payments inside your session need no prompt at all, and if you're short you top up from whatever you hold on any chain.
 
-| Item | Notes |
-|------|--------|
-| Product name + description | Borneo: AI shopping agents that settle USDC over x402 on Arbitrum, Base and HyperEVM. Intent → route → settle → earn |
-| Blockchains and tools | Arbitrum, Base, HyperEVM · x402 · EIP-3009 · Circle USDC · Paxos USDG · Uniswap V3 · Foundry · viem · Next.js |
-| Team, backgrounds, location | [fill in] |
-| Logo or graphic | [fill in] |
-| Repository | This repo (public) |
-| Presentation video | 2–3 minutes |
-| Product demo video | Up to 3 minutes (shot list below) |
-| Go-to-market, demand validation, distribution | [fill in] |
-| Prior work disclosure | See "Prior work" below. Colosseum requires this in the form |
-| Onchain proof | BorneoCheckout [`0xf818…9fc4`](https://sepolia.arbiscan.io/address/0xf8188490C10d0248DBB27bD1A07F8a7b4f0e9fc4) · settled purchase [`0x6984…3545`](https://sepolia.arbiscan.io/tx/0x698479add48aa055711965108a33457357465d4e36897029f96300757fa23545) · Base Sepolia checkout [`0x3aD9…6d28`](https://sepolia.basescan.org/address/0x3aD9d36Fd382162E206415fF1736E78bF8326d28) · settled purchase [`0xe59a…f642`](https://sepolia.basescan.org/tx/0xe59a1358d09517132756e5a4be1ee623061d459611de348deae718bda6f8f642) · HyperEVM Testnet checkout [`0x3aD9…6d28`](https://crypto-worlds-fair.vercel.app/explorer/998/address/0x3aD9d36Fd382162E206415fF1736E78bF8326d28) · settled purchase [`0x524b…38bb`](https://crypto-worlds-fair.vercel.app/explorer/998/tx/0x524be5fa8a4edcb79ff09a6ca1cab6ceda62dc4f9df71acd48e09e4a31da38bb) |
+## Why it fits Consumer Products & Payments
 
-## Prior work
+The track asks for financial products that use onchain rails as a design advantage for people who don't identify as crypto users. Borneo hides every crypto step a shopper would normally see:
 
-Colosseum's rule: teams may start before the hackathon, products are judged only on work done between the start and end dates, and all relevant past development must be disclosed in the submission form. Misrepresenting development history can lead to disqualification.
-
-What to disclose:
-
-- This repository's code was re-committed in small steps on Oct 11–12, 2026. The commit dates here are when the files were copied, not when they were first written.
-- [List anything built before Sep 14, 2026, such as earlier versions on other chains.]
-
-Added in this repository:
-
-- Chain registry for Arbitrum, Base and HyperEVM (`src/lib/chains.ts`)
-- 402 challenges with one entry per chain, and settlement on the chain the buyer signed for (`src/lib/protocol/x402.ts`, `handlers.ts`)
-- Buyer agent chain selection by wallet balance, with per-chain trust checks (`src/lib/agents/tools-buyer.ts`)
-- EIP-712 domains confirmed against each token's on-chain separator (`src/lib/protocol/token-domain.ts`)
-- Per-chain token allowlists for deployment and cross-chain replay tests (`contracts/script/SettleTokens.sol`, `contracts/test/`)
-- Chain preflight script and offline tests (`scripts/check-chains.mts`, `scripts/chains.test.mts`)
-
-## How it maps to the judging criteria
-
-| Criterion | Borneo |
+| Usually needed | In Borneo |
 |---|---|
-| Functionality | Any HTTP agent buys from any store in one 402 round trip with no gas. BorneoCheckout settles every order on-chain. 29 Foundry tests (1 000-run fuzz, fork tests against real USDC + USDG) and 14 offline app tests. |
-| Potential impact | Agents need a safe, open way to pay merchants. One protocol reaches buyers holding USDC on three ecosystems. |
-| Novelty | x402 plus a checkout contract that binds each authorization to one order on one chain, with an on-chain fee split and rewards. |
-| UX | Chat intent to settled order without a checkout page. The buyer pays from whichever chain holds funds and never needs a gas token. |
-| Open-source / composability | Public repo. Standard x402 `exact` scheme and EIP-3009, so existing x402 clients work. `llms.txt`, `agent.json` and `catalog.json` for discovery. |
-| Business plan | Protocol fee in basis points taken on-chain at settlement, shared back as XPoints. [expand] |
+| Wallet extension + seed phrase | One passkey ceremony (Mera) |
+| A wallet popup per payment | Scoped signing session: $25/payment, $100/session, 30 min, no prompt |
+| Gas token | Relayer pays MON; shopper signs an EIP-3009 authorization only |
+| Right token on the right chain | Aurora Intents swaps anything on 30+ chains into USDC on Monad |
+| A checkout page | x402: the agent pays the store over HTTP; Monad's 400 ms blocks make it feel instant |
+| Trusting a backend with history | Envio rebuilds orders and XPoints from chain |
 
-## Track notes
+## Prior work (disclose in the form)
 
-| Track | Integration |
-|---|---|
-| Arbitrum | Checkout live and verified on Arbitrum Sepolia. USDC + Paxos USDG. Uniswap V3 route quotes from Arbitrum One. ETH gas bridge via the Arbitrum SDK. |
-| Base | Checkout live on Base Sepolia with a settled USDC purchase. Base is where x402 clients already operate. |
-| Hyperliquid | Checkout live on HyperEVM Testnet with a settled USDC purchase. Relayer pays gas in HYPE. |
+Borneo started at earlier hackathons: the agent storefront protocol, the buyer and merchant agents, x402 settlement and the `BorneoCheckout` contract (deployed on Arbitrum Sepolia, Base Sepolia and HyperEVM Testnet). Built for Metropolis:
 
-The checkout is deployed on Base Sepolia and HyperEVM Testnet, and `npm run chains:check` passes on all three chains. A real USDC purchase has settled on each of them (links above); see [`chains.md`](./chains.md#verification-status).
+- Monad Testnet and Monad as the primary settlement chains (registry, contract allowlist, Foundry aliases, tests)
+- Mera passkey accounts as the entire buyer account layer, with a scoped prompt-free signing session and step-up re-prompts
+- Splitting x402 signing so the browser signs and the server never holds the shopper's key
+- Aurora Intents any-chain top-ups with automatic order completion
+- The Envio HyperIndex indexer and the on-chain history, XPoints and merchant sales features
+- Alchemy RPC and Address Activity webhooks
+- Privy merchant payout wallets
 
-## Demo video shot list (~3 min)
+## Bounty answers
 
-1. **0:00–0:20** Landing: thesis line *Intent → Route → Settle → Earn*, "any HTTP agent can pay"
-2. **0:20–0:50** `/buyer`: “Deploy funds into this tokenized asset” or fashion drop intent → picks including `/s/arbitrum-rwa-desk`
-3. **0:50–1:20** Consent modal: liquidity route preview (USDC balance / ETH → USDC quote from Arbitrum One)
-4. **1:20–2:00** Authorize → protocol log showing the 402 challenge with three chains → agent picks the funded chain → ReceiveWithAuthorization signature → `settle` → open the tx on the explorer and show the `OrderSettled` event + merchant/treasury split
-5. **2:00–2:30** Same store, second purchase paid on another chain: `npx tsx --env-file=.env scripts/e2e-checkout.mts <url> atelier-tee "" base-sepolia`, then `hyperevm-testnet`
-6. **2:30–2:45** `/buyer/xpoints`: XPoints earned + copy invite link (`?ref=`)
-7. **2:45–3:00** curl `POST /s/{slug}/buy` → 402 with one `accepts` entry per chain (shows any agent can integrate)
+### Aurora Intents — Bring Any-Chain Liquidity to Monad
 
-## Deploy
+**How we integrate:** Swap API (1Click). When a shopper's passkey wallet is short for an order, checkout links to `/buyer/fund` with the exact shortfall. We request an `EXACT_OUTPUT` quote for that much Circle USDC on Monad, delivered to the passkey wallet, from whatever asset the shopper picks among the tokens Aurora lists. They send to the one-time deposit address; we poll `/api/status`, optionally report the deposit tx with `/api/deposit/submit`, and handle `INCOMPLETE_DEPOSIT`, `REFUNDED` and `FAILED`. Refunds default to the shopper's own address on EVM origin chains (the passkey derives the same EOA everywhere). On `SUCCESS` the shopper returns to the order and the agent completes the purchase with the funds that just arrived: deposit, then execute, in one flow.
 
-Set the env vars from `.env.example` on Vercel (at minimum `CHAIN_NETWORK`, `SETTLE_NETWORKS`, `BUYER_PRIVATE_KEY`, `MERCHANT_ADDRESS`, `CHECKOUT_ADDRESS_<chainId>` per chain, `TREASURY_ADDRESS`, `OPENAI_API_KEY`, Firebase). Remove any old `XLAYER_*`, `OKX_*`, `TOKEN_ADDRESS`, `TOKEN_SYMBOL` and `EXPLORER_BASE` values so the chain defaults apply. Then:
+**Friction removed:** a shopper holding SOL, BTC or USDC on Base can pay a Monad store without knowing what a bridge is.
 
-```bash
-vercel deploy --prod
-```
+**Code:** `src/lib/aurora/intents.ts`, `src/app/api/aurora/*`, `src/app/buyer/fund/page.tsx`, `src/app/buyer/_lib/resume-order.ts`.
 
-Fund `BUYER_PRIVATE_KEY` with testnet USDC on each enabled chain, and the relayer with a little gas, per [`chains.md`](./chains.md).
+### Best Mera-Powered UX on Monad
+
+**How we integrate:** Mera is the entire buyer account layer. `createPasskeyWithPrfOutput` creates the account in one ceremony; the PRF output maps through BIP-39/32 to one secp256k1 key; `createSecp256k1SigningSession` + `toViemAccount` signs. There is no email, no OTP, no seed phrase, no extension and no custody backend: the server returns unsigned EIP-3009 authorizations and the browser signs them.
+
+- **Session design:** prompt-free only for stablecoin payment authorizations (`TransferWithAuthorization` / `ReceiveWithAuthorization`) on known tokens and chains, capped at $25 per payment (lower if the shopper's own governance limit is lower) and $100 per session, for 30 minutes or 10 idle minutes. Anything else re-prompts. Expiry and lock zero the key copy (`session.end()`), as does closing the tab. The nav shows remaining prompt-free budget and minutes.
+- **Stateless test:** localStorage holds only an untrusted hint (credential id + address). Clear it or use a fresh device: the passkey rebuilds the same address, and order history plus XPoints come back from the Envio index.
+- **Stack composability:** gas abstraction (relayer pays MON), intents (Aurora top-ups into the passkey wallet), cross-chain account (the same passkey address receives refunds on any EVM chain).
+
+**Code:** `src/lib/mera/*`, `src/app/buyer/_components/passkey-*.tsx`, `src/app/buyer/_lib/passkey-checkout.ts`, `src/app/api/buyer-agent/sign/route.ts`, `scripts/mera-scope.test.mts`.
+
+### Best Use of Envio
+
+**How we integrate:** HyperIndex project in `indexer/` (public `config.yaml`, `schema.graphql`, `src/handlers/BorneoCheckout.ts`, tests). It indexes every BorneoCheckout deployment across four chains (Monad Testnet, Monad, Arbitrum Sepolia, Base Sepolia) and derives merchant, buyer, merchant-buyer, token, daily and checkout rollups (gross/net/fees, unique and repeat buyers, active buyers per day, XPoints). The app consumes it for three features: the shopper's on-chain order history (the backbone of the Mera stateless test), on-chain XPoints, and the merchant's sales card.
+
+**Code:** `indexer/`, `src/lib/envio/checkout-index.ts`, `src/app/api/onchain/*`, `src/app/buyer/_components/onchain-history.tsx`, `src/components/merchant/onchain-sales.tsx`.
+
+### Best Projects using Alchemy
+
+**How we integrate:** Alchemy node RPC carries every server read, x402 settlement and relayer transaction on Monad when `ALCHEMY_API_KEY` is set. Alchemy Webhooks: requesting a top-up adds the shopper's wallet to an Address Activity webhook through the Notify API; `/api/alchemy/webhook` verifies `X-Alchemy-Signature` and records stablecoin arrivals, which the top-up page shows as soon as Aurora's delivery lands.
+
+**Code:** `src/lib/alchemy/*`, `src/app/api/alchemy/*`, `scripts/alchemy-webhook.test.mts`.
+
+### Privy
+
+**How we integrate (beyond login):** merchants sign in with email/Google/passkey and get a Privy embedded wallet as their payout address. The wallet signs the payout-binding proof (`useSignMessage`), which the app verifies before binding, and the merchant withdraws received USDC on Monad with `useSendTransaction` (Privy gas sponsorship when enabled). This replaces pasting private keys into the setup page.
+
+**Code:** `src/components/merchant/privy-payout-wallet.tsx`, `src/app/merchant/setup/page.tsx`.
+
+## Demo script (2 min)
+
+1. Fresh browser → `/buyer/login` → **Create account with a passkey** (one prompt). Show the address and the session chip.
+2. "Find me a cap under $1" → agent locks a quote → Pay. Wallet is empty → **Top up from any chain**.
+3. Pick USDC on Base → deposit address → send from a phone wallet → status reaches *USDC arrived* (Alchemy line appears) → **Back to your order** → the agent pays with no prompt; open the Monad explorer link.
+4. `/buyer/activity`: order shows under On-chain orders (Envio). Clear site data, sign in with the same passkey: same address, same history.
+5. Merchant view: `/merchant/setup` → Privy payout wallet → `/dashboard` on-chain sales card.
+
+## Before submitting
+
+- [ ] Deploy BorneoCheckout on Monad and run `npm run chains:check` (see `docs/monad.md`)
+- [ ] Settle one passkey purchase on Monad and keep the explorer link
+- [ ] Run one real Aurora top-up on mainnet and record it
+- [ ] Deploy the indexer and set `ENVIO_GRAPHQL_URL`
+- [ ] Live HTTPS link, demo video, pitch video, public repo
