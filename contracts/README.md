@@ -25,7 +25,7 @@ DEPLOYER_PRIVATE_KEY=0x… TREASURY_ADDRESS=0x… PROTOCOL_FEE_BPS=50 \
 
 # Verify on Monad (Sourcify-backed explorers need no key)
 forge verify-contract <address> src/BorneoCheckout.sol:BorneoCheckout \
-  --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org \
+  --chain 10143 --verifier sourcify --verifier-url https://sourcify-api-monad.blockvision.org/ \
   --constructor-args $(cast abi-encode "constructor(address,address,uint16,address[])" <owner> <treasury> 50 "[0x534b2f3A21130d7a60830c2Df862319e593943A3]")
 
 # Verify (Blockscout, no key) or Arbiscan (ARBISCAN_API_KEY)
