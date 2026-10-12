@@ -1,3 +1,4 @@
+import { isAddress } from "viem";
 import { ensureSettleLiquidity } from "@/lib/liquidity/route";
 import {
   cartSettlementTotal,
@@ -21,7 +22,9 @@ type OutfitLineBody = {
 };
 
 /**
- * Preview or execute Arbitrum liquidity routing (native → settle token) before x402.
+ * Preview the shopper's settle-token balance before x402. On Arbitrum it can
+ * also quote or execute a Uniswap route (native → settle token) for the
+ * server agent wallet.
  * GET/POST ?price=0.06&execute=0|1&toToken=&toSymbol=
  * POST with `lines` returns an outfit settle plan (hackathon mixed quotes + full multi-asset).
  */
@@ -57,7 +60,11 @@ export async function POST(request: Request) {
       toTokenAddress?: string;
       toSymbol?: string;
       lines?: OutfitLineBody[];
+      /** Passkey wallet to read balances for (preview only). */
+      buyerAddress?: string;
     };
+    const buyerAddress =
+      body.buyerAddress && isAddress(body.buyerAddress) ? body.buyerAddress : undefined;
 
     if (body.lines?.length) {
       const settleLines = body.lines.map((line) =>
@@ -87,6 +94,7 @@ export async function POST(request: Request) {
           execute,
           toTokenAddress: g.asset,
           toSymbol: g.symbol,
+          buyerAddress,
         });
         routes.push({
           asset: g.asset,
@@ -134,6 +142,7 @@ export async function POST(request: Request) {
       execute: Boolean(body.execute),
       toTokenAddress: body.toTokenAddress,
       toSymbol: body.toSymbol,
+      buyerAddress,
     });
     return Response.json(result);
   } catch (error) {
