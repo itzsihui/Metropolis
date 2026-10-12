@@ -58,6 +58,11 @@ export function parseMerchantAddress(
   }
 }
 
+/** Message a wallet signs to prove it controls a merchant payout address. */
+export function buildMerchantAuthMessage(address: HexAddress): string {
+  return buildAuthMessage(address);
+}
+
 function buildAuthMessage(address: HexAddress): string {
   const issuedAt = new Date().toISOString();
   return [
