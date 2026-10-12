@@ -7,7 +7,7 @@ pdf_options:
 
 # Borneo — Project Description
 
-**Two-sided agentic commerce:** merchants publish agent-ready catalogs; buyers discover and pay in one chat — with **Visa-scoped cards** and **USDC on Arbitrum, Base and HyperEVM**, secured by a **CaMeL-shaped** settle lock against prompt injection.
+**Two-sided agentic commerce:** merchants publish agent-ready catalogs; buyers discover and pay in one chat — with **Visa-scoped cards** and **USDC on Monad** (plus Arbitrum, Base and HyperEVM), secured by a **CaMeL-shaped** settle lock against prompt injection.
 
 | Field | Details |
 |---|---|
@@ -18,7 +18,7 @@ pdf_options:
 
 ## Short answer (300 characters)
 
-Borneo is an AI shopping agent on Arbitrum, Base and HyperEVM. Fragmented assets mean manual swaps, and agent catalogs are walled off. Buyers chat their intent; Borneo finds items in an open registry and settles USDC via x402. CaMeL-style locked quotes stop prompt injection from redirecting funds.
+Borneo is an AI shopping agent that pays in USDC on Monad, with a passkey as the whole account. Fragmented assets mean manual swaps, and agent catalogs are walled off. Buyers chat their intent; Borneo finds items in an open registry and settles USDC via x402. CaMeL-style locked quotes stop prompt injection from redirecting funds.
 
 ## Summary
 
@@ -86,7 +86,7 @@ Borneo productizes that principle for commerce: **untrusted catalog data must no
 | App | Next.js, React, TypeScript, Tailwind CSS, Motion |
 | Agents | OpenAI (salesperson + merchant); deterministic tool fallbacks without keys |
 | Auth / data | Firebase Auth + Firestore profiles |
-| Payments | Visa-scoped card flow (fiat-first); USDC on Arbitrum, Base and HyperEVM via x402 (EIP-3009) + **viem** |
+| Payments | Visa-scoped card flow (fiat-first); USDC on Monad (and Arbitrum, Base, HyperEVM) via x402 (EIP-3009) + **viem**; Mera passkey wallets; Aurora Intents top-ups |
 | Protocol | Hono-style agent endpoints; machine catalogs for discovery |
 | Security model | CaMeL-inspired quarantine reader + locked-quote settle (AgentDojo-validated design pattern) |
 | Other | Zod, MetaMask (merchant bind), local/session persistence for demo reliability |
