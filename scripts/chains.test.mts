@@ -30,7 +30,7 @@ const MERCHANT = "0x1111111111111111111111111111111111111111";
 
 test("every preset is internally consistent", () => {
   const chains = listChains();
-  assert.equal(chains.length, 6);
+  assert.equal(chains.length, 8);
   assert.equal(new Set(chains.map((c) => c.network)).size, chains.length);
   for (const chain of chains) {
     assert.equal(chain.network, `eip155:${chain.viemChain.id}`);
@@ -50,7 +50,7 @@ test("every preset is internally consistent", () => {
 });
 
 test("each ecosystem has a testnet and a mainnet", () => {
-  for (const family of ["arbitrum", "base", "hyperliquid"]) {
+  for (const family of ["monad", "arbitrum", "base", "hyperliquid"]) {
     const members = listChains().filter((c) => c.family === family);
     assert.equal(members.length, 2, family);
     assert.equal(members.filter((c) => c.testnet).length, 1, family);
@@ -64,6 +64,9 @@ test("normalizeNetwork accepts CAIP-2 ids, chain ids and labels", () => {
   assert.equal(normalizeNetwork("hyperevm-testnet"), "eip155:998");
   assert.equal(normalizeNetwork("hyper_evm"), "eip155:999");
   assert.equal(normalizeNetwork("arbitrum one"), "eip155:42161");
+  assert.equal(normalizeNetwork("monad-testnet"), "eip155:10143");
+  assert.equal(normalizeNetwork("10143"), "eip155:10143");
+  assert.equal(normalizeNetwork("monad"), "eip155:143");
   assert.equal(normalizeNetwork("eip155:1"), null);
   assert.equal(normalizeNetwork("eip155:4663"), null);
   assert.equal(normalizeNetwork("solana"), null);
