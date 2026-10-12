@@ -12,13 +12,21 @@ import {
   merchantSetupComplete,
   type MerchantGovernance,
 } from "@/lib/firebase/merchant-auth";
+import dynamic from "next/dynamic";
 import {
+  verifyMerchantAuth,
   authenticateWithPrivateKeyAsync,
   authenticateWithMetaMask,
   generateMerchantWallet,
   hasMetaMask,
   shortAddress,
 } from "@/lib/wallet/ethereum";
+
+// Privy's SDK is large; load it only on this page, in the browser.
+const PrivyPayoutWallet = dynamic(
+  () => import("@/components/merchant/privy-payout-wallet").then((m) => m.PrivyPayoutWallet),
+  { ssr: false, loading: () => <p className="text-xs text-muted-foreground">Loading Privy…</p> },
+);
 
 export default function MerchantSetupPage() {
   const router = useRouter();
@@ -227,6 +235,19 @@ export default function MerchantSetupPage() {
             env. Bind MetaMask or a private key if you want payouts to your own
             {config.chainLabel} wallet (key stays in the browser).
           </p>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+            <PrivyPayoutWallet
+              boundAddress={wallet}
+              onBound={async (proof) => {
+                const verified = await verifyMerchantAuth(proof);
+                if (!verified) throw new Error("Payout proof did not verify");
+                await merchant.bindWallet(verified);
+                setBoundWallet(verified);
+                setMessage(`${config.chainLabel} receive bound: ${shortAddress(verified)} (Privy)`);
+              }}
+            />
+          </div>
+          <p className="text-[11px] text-foreground/45">Or bind an existing wallet:</p>
           {wallet ? (
             <p className="font-mono text-sm">
               {shortAddress(wallet)}
