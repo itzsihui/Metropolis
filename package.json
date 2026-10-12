@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test scripts/chains.test.mts scripts/mera-scope.test.mts",
+    "test": "tsx --test scripts/chains.test.mts scripts/mera-scope.test.mts scripts/alchemy-webhook.test.mts",
     "chains:check": "tsx --env-file-if-exists=.env scripts/check-chains.mts",
     "protocol:build": "node services/protocol/build.mjs",
     "protocol:deploy": "bash scripts/deploy-protocol.sh"
