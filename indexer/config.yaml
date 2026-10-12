@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+#
+# Borneo checkout indexer (Envio HyperIndex).
+#
+# Indexes every BorneoCheckout deployment: each order with its merchant, buyer,
+# fee and XPoints, plus per-merchant, per-buyer, per-token and per-day rollups.
+# The app reads it to rebuild a passkey shopper's history from chain alone,
+# and to show merchants their sales.
+#
+# Monad addresses come from the environment so a fresh deploy needs no edit:
+#   ENVIO_CHECKOUT_MONAD_TESTNET=0x…  ENVIO_CHECKOUT_MONAD=0x…
+name: borneo-checkout
+description: BorneoCheckout orders, merchants, buyers and XPoints across chains
+# Rows are per chain: the same merchant on Monad and Base is two rows.
+disable_default_cross_chain: true
+contracts:
+  - name: BorneoCheckout
+    events:
+      - event: "OrderSettled(bytes32 indexed orderId, address indexed merchant, address indexed payer, address token, uint256 amount, uint256 fee, uint256 points)"
+      - event: "TokenAllowed(address indexed token, bool allowed)"
+      - event: "FeeUpdated(uint16 feeBps)"
+      - event: "TreasuryUpdated(address indexed treasury)"
+      - event: "Paused(address account)"
+      - event: "Unpaused(address account)"
+chains:
+  - id: 10143 # Monad Testnet
+    start_block: ${ENVIO_START_BLOCK_MONAD_TESTNET:-0}
+    contracts:
+      - name: BorneoCheckout
+        address: "${ENVIO_CHECKOUT_MONAD_TESTNET:-0x0000000000000000000000000000000000000001}"
+  - id: 143 # Monad
+    start_block: ${ENVIO_START_BLOCK_MONAD:-0}
+    contracts:
+      - name: BorneoCheckout
+        address: "${ENVIO_CHECKOUT_MONAD:-0x0000000000000000000000000000000000000001}"
+  - id: 421614 # Arbitrum Sepolia (live checkout with real orders)
+    start_block: 315390430
+    contracts:
+      - name: BorneoCheckout
+        address: "0xf8188490C10d0248DBB27bD1A07F8a7b4f0e9fc4"
+  - id: 84532 # Base Sepolia (live checkout)
+    start_block: 47984137
+    contracts:
+      - name: BorneoCheckout
+        address: "0x3aD9d36Fd382162E206415fF1736E78bF8326d28"
