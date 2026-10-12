@@ -1,12 +1,12 @@
-# Borneo × Crypto World's Fair
+# Borneo × Monad Metropolis
 
 Source of truth for this prototype. Landing copy, demo script, and product decisions should map here.
 
-**Design read:** cinematic product landing for Arbitrum Open House judges — intent-native commerce on Arbitrum (Syne + IBM Plex, jade / ember / ink).
+**Design read:** cinematic product landing — intent-native commerce on Monad (Syne + IBM Plex, jade / ember / ink).
 
 **Dials:** `DESIGN_VARIANCE: 6` · `MOTION_INTENSITY: 5` · `VISUAL_DENSITY: 4`
 
-**Primary track:** Build a Market
+**Primary track:** Consumer Products & Payments (Monad Metropolis). Bounties: Aurora Intents, Mera, Envio, Alchemy, Privy — see `docs/submission.md`.
 
 ---
 
@@ -14,7 +14,7 @@ Source of truth for this prototype. Landing copy, demo script, and product decis
 
 Users hold fragmented assets. Buying merch, tokenized RWAs, or micro-payments usually means manual swaps, gas friction, and separate rails. Agent commerce catalogs are also walled — merchants listing only inside a few chat apps are invisible to the long tail of agents.
 
-**Challenge framing:** An AI shopping agent bridges natural-language intent to **Arbitrum liquidity routing** and **USDC x402 settlement** on Arbitrum, then shares protocol upside back as **XPoints** so users switch for seamless conversion *and* earn rewards.
+**Challenge framing:** An AI shopping agent bridges natural-language intent to **USDC x402 settlement on Monad**, paid from a **passkey wallet** (Mera) and funded from **any chain** (Aurora Intents), then shares protocol upside back as **XPoints** so users switch for seamless conversion *and* earn rewards.
 
 ---
 
