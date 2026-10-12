@@ -37,6 +37,13 @@ contract SettleTokensTest is Test {
         _assertTokens(999, 1);
     }
 
+    function test_monad_allowsUsdc() public view {
+        _assertTokens(10_143, 1);
+        _assertTokens(143, 1);
+        assertEq(harness.forChain(10_143)[0], 0x534b2f3A21130d7a60830c2Df862319e593943A3);
+        assertEq(harness.forChain(143)[0], 0x754704Bc059F8C67012fEd69BC8A327a5aafb603);
+    }
+
     function test_arbitrumSepolia_matchesLiveDeployment() public view {
         address[] memory tokens = harness.forChain(421_614);
         assertEq(tokens[0], 0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d);
