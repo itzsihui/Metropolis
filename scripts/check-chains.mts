@@ -15,6 +15,7 @@
 import { createPublicClient, formatEther, getAddress, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { chainPreset, listChains, normalizeNetwork } from "../src/lib/chains.ts";
+import { rpcProviderLabel } from "../src/lib/alchemy/rpc.ts";
 import { chainSettings, config, eip712DomainFor } from "../src/lib/config.ts";
 import { matchDomain, resolveTokenDomain } from "../src/lib/protocol/token-domain.ts";
 
@@ -65,10 +66,10 @@ async function checkChain(network: string): Promise<boolean> {
   console.log(`\n${chain.label} (${network})`);
   try {
     const id = await client.getChainId();
-    line(id === chain.chainId, `rpc ${chain.rpcUrl} reports chain ${id}`);
+    line(id === chain.chainId, `rpc ${rpcProviderLabel(chain.rpcUrl)} reports chain ${id}`);
     if (id !== chain.chainId) return false;
   } catch (error) {
-    line(false, `rpc ${chain.rpcUrl} unreachable: ${(error as Error).message.split("\n")[0]}`);
+    line(false, `rpc ${rpcProviderLabel(chain.rpcUrl)} unreachable: ${(error as Error).message.split("\n")[0]}`);
     return false;
   }
 
