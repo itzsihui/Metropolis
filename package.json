@@ -20,6 +20,7 @@
     "@base-ui/react": "^1.7.0",
     "@category-labs/mera": "^0.2.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@privy-io/react-auth": "^3.48.1",
     "@scure/bip32": "^2.4.0",
     "@scure/bip39": "^2.4.0",
     "class-variance-authority": "^0.7.1",
