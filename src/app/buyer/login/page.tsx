@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useBuyerAuth } from "../_components/buyer-auth-provider";
+import { BUYER_ACCOUNT_MODE, useBuyerAuth } from "../_components/buyer-auth-provider";
+import { PasskeySignIn } from "../_components/passkey-sign-in";
 
-export default function BuyerLoginPage() {
+function FirebaseBuyerLoginPage() {
   const router = useRouter();
   const auth = useBuyerAuth();
   const [email, setEmail] = useState("");
@@ -110,4 +111,9 @@ export default function BuyerLoginPage() {
       </p>
     </main>
   );
+}
+
+export default function BuyerLoginPage() {
+  if (BUYER_ACCOUNT_MODE === "passkey") return <PasskeySignIn intent="sign-in" />;
+  return <FirebaseBuyerLoginPage />;
 }
