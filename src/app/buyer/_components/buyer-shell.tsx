@@ -8,6 +8,7 @@ import { readBuyerAccount } from "@/lib/buyer-account";
 import { cn } from "@/lib/utils";
 import { useBuyerAuth } from "./buyer-auth-provider";
 import { usePasskeyWallet } from "./passkey-wallet-provider";
+import { PasskeyWalletChip } from "./passkey-wallet-chip";
 
 const NAV = [
   { href: "/buyer", label: "Shop", exact: true },
@@ -161,12 +162,15 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </div>
-          <Link
-            href="/merchant/login"
-            className="hidden shrink-0 text-xs text-foreground/45 underline-offset-2 hover:underline sm:inline"
-          >
-            Sell instead
-          </Link>
+          <div className="flex items-center gap-4">
+            {auth.mode === "passkey" ? <PasskeyWalletChip /> : null}
+            <Link
+              href="/merchant/login"
+              className="hidden shrink-0 text-xs text-foreground/45 underline-offset-2 hover:underline sm:inline"
+            >
+              Sell instead
+            </Link>
+          </div>
         </div>
       </div>
       <div
