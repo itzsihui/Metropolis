@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TransactionHistory } from "../_components/transaction-history";
+import { OnchainHistory } from "../_components/onchain-history";
 import { readBuyerAccount, type SpendEvent } from "@/lib/buyer-account";
 
 export default function BuyerActivityPage() {
@@ -35,6 +36,8 @@ export default function BuyerActivityPage() {
           reviewed
         </p>
       ) : null}
+
+      <OnchainHistory />
 
       <section className="rounded-lg border border-border bg-background p-5">
         <TransactionHistory
