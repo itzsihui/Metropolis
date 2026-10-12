@@ -19,13 +19,25 @@ import {
 } from "@/lib/firebase/buyer-auth";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import {
+  ensurePasskeyBuyerAccount,
   readBuyerAccount,
   setBuyerCloudSyncUid,
   writeBuyerAccount,
   type BuyerAccount,
 } from "@/lib/buyer-account";
+import { usePasskeyWallet } from "./passkey-wallet-provider";
+
+/**
+ * How shoppers sign in. "passkey" (default): a Mera passkey is the whole
+ * account, no email and no backend. "firebase": the older email/password flow.
+ */
+export type BuyerAccountMode = "passkey" | "firebase";
+
+export const BUYER_ACCOUNT_MODE: BuyerAccountMode =
+  process.env.NEXT_PUBLIC_BUYER_ACCOUNTS === "firebase" ? "firebase" : "passkey";
 
 type BuyerAuthContextValue = {
+  mode: BuyerAccountMode;
   configured: boolean;
   ready: boolean;
   user: User | null;
@@ -44,12 +56,33 @@ type BuyerAuthContextValue = {
 const BuyerAuthContext = createContext<BuyerAuthContextValue | null>(null);
 
 export function BuyerAuthProvider({ children }: { children: React.ReactNode }) {
-  const configured = isFirebaseConfigured();
+  const mode = BUYER_ACCOUNT_MODE;
+  const wallet = usePasskeyWallet();
+  const configured = mode === "firebase" && isFirebaseConfigured();
   const [ready, setReady] = useState(!configured);
   const [user, setUser] = useState<User | null>(null);
-  const [account, setAccount] = useState<BuyerAccount | null>(null);
+  const [firebaseAccount, setAccount] = useState<BuyerAccount | null>(null);
+  // Passkey mode: the profile follows the wallet address.
+  const [passkeyAccount, setPasskeyAccount] = useState<BuyerAccount | null>(null);
+  const passkeyFor = wallet.address;
+  const account =
+    mode === "passkey"
+      ? passkeyAccount?.walletAddress?.toLowerCase() === passkeyFor?.toLowerCase()
+        ? passkeyAccount
+        : null
+      : firebaseAccount;
+
+  useEffect(() => {
+    if (mode !== "passkey" || !passkeyFor) return;
+    const ensured = ensurePasskeyBuyerAccount(passkeyFor);
+    queueMicrotask(() => setPasskeyAccount(ensured));
+  }, [mode, passkeyFor]);
 
   const refreshAccount = useCallback(async () => {
+    if (mode === "passkey") {
+      setPasskeyAccount(passkeyFor ? ensurePasskeyBuyerAccount(passkeyFor) : null);
+      return;
+    }
     if (user) {
       const cloud = await loadBuyerFromCloud(user.uid);
       if (cloud) {
@@ -59,7 +92,7 @@ export function BuyerAuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setAccount(readBuyerAccount());
-  }, [user]);
+  }, [mode, passkeyFor, user]);
 
   useEffect(() => {
     if (!configured) {
@@ -90,6 +123,7 @@ export function BuyerAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<BuyerAuthContextValue>(
     () => ({
+      mode,
       configured,
       ready,
       user,
@@ -104,6 +138,11 @@ export function BuyerAuthProvider({ children }: { children: React.ReactNode }) {
         setAccount(loaded);
       },
       signOut: async () => {
+        if (mode === "passkey") {
+          wallet.lock();
+          setPasskeyAccount(null);
+          return;
+        }
         await signOutBuyer();
         setBuyerCloudSyncUid(null);
         setAccount(null);
@@ -111,7 +150,7 @@ export function BuyerAuthProvider({ children }: { children: React.ReactNode }) {
       },
       errorMessage: authErrorMessage,
     }),
-    [configured, ready, user, account, refreshAccount],
+    [mode, configured, ready, user, account, refreshAccount, wallet],
   );
 
   return (

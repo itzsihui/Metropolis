@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/site-header";
 import { readBuyerAccount } from "@/lib/buyer-account";
 import { cn } from "@/lib/utils";
 import { useBuyerAuth } from "./buyer-auth-provider";
+import { usePasskeyWallet } from "./passkey-wallet-provider";
 
 const NAV = [
   { href: "/buyer", label: "Shop", exact: true },
@@ -27,6 +28,7 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const auth = useBuyerAuth();
+  const wallet = usePasskeyWallet();
   const [ready, setReady] = useState(false);
 
   const isAuthPage =
@@ -35,6 +37,20 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!auth.ready) return;
+
+    // Passkey accounts: no onboarding. Unknown wallet → passkey screen.
+    if (auth.mode === "passkey") {
+      if (!wallet.address && !isAuthPage) {
+        router.replace("/buyer/login");
+        return;
+      }
+      if (wallet.address && (isAuthPage || isOnboard)) {
+        router.replace("/buyer");
+        return;
+      }
+      setReady(true);
+      return;
+    }
 
     // Without Firebase: keep localStorage-only gate
     if (!auth.configured) {
@@ -77,6 +93,8 @@ export function BuyerShell({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, [
     auth.ready,
+    auth.mode,
+    wallet.address,
     auth.configured,
     auth.user,
     auth.account,
