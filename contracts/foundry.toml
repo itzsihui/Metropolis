@@ -21,6 +21,8 @@ base_sepolia = "https://sepolia.base.org"
 base = "https://mainnet.base.org"
 hyperevm_testnet = "https://rpc.hyperliquid-testnet.xyz/evm"
 hyperevm = "https://rpc.hyperliquid.xyz/evm"
+monad_testnet = "https://testnet-rpc.monad.xyz"
+monad = "https://rpc.monad.xyz"
 
 # Etherscan-family explorers. Blockscout needs no key: pass
 # --verifier blockscout --verifier-url <explorer>/api/ instead.
