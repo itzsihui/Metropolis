@@ -329,24 +329,24 @@ export function selectRequirement(
 }
 
 /**
- * Buyer side: sign an EIP-3009 authorization. Signs `accepted` when given
- * (must be one of the challenge's entries), otherwise the first requirement.
+ * Buyer side, step 1: the unsigned EIP-3009 authorization for one requirement.
+ * Split from signing so a wallet the server never sees (a passkey account in
+ * the browser) can sign it and hand back only the signature.
  */
-export async function createPaymentPayload(
-  account: LocalAccount,
-  challenge: PaymentRequired,
-  accepted: PaymentRequirements | undefined = selectRequirement(challenge),
-): Promise<PaymentPayload> {
+export function prepareAuthorization(
+  from: string,
+  accepted: PaymentRequirements,
+  now = Math.floor(Date.now() / 1000),
+): Eip3009Authorization {
   if (!accepted || accepted.scheme !== "exact") {
     throw new Error("No `exact` payment requirement in 402 challenge");
   }
-  const now = Math.floor(Date.now() / 1000);
   const viaCheckout = authorizationType(accepted) === "ReceiveWithAuthorization";
   if (viaCheckout && !accepted.extra?.nonce) {
     throw new Error("Checkout payment requirement is missing extra.nonce");
   }
-  const authorization: Eip3009Authorization = {
-    from: account.address,
+  return {
+    from: getAddress(from),
     to: getAddress(accepted.payTo),
     value: accepted.amount,
     validAfter: String(now - 5),
@@ -355,13 +355,44 @@ export async function createPaymentPayload(
       ? (accepted.extra!.nonce as Hex)
       : toHex(crypto.getRandomValues(new Uint8Array(32))),
   };
-  const signature = await account.signTypedData(typedData(accepted, authorization));
+}
+
+/** The EIP-712 payload a wallet signs for `authorization`. */
+export function authorizationTypedData(
+  accepted: PaymentRequirements,
+  authorization: Eip3009Authorization,
+) {
+  return typedData(accepted, authorization);
+}
+
+/** Buyer side, step 2: wrap a signed authorization as an x402 payment. */
+export function assemblePaymentPayload(
+  challenge: Pick<PaymentRequired, "resource">,
+  accepted: PaymentRequirements,
+  authorization: Eip3009Authorization,
+  signature: Hex,
+): PaymentPayload {
   return {
     x402Version: 2,
     resource: challenge.resource,
     accepted,
     payload: { authorization, signature },
   };
+}
+
+/**
+ * Buyer side: sign an EIP-3009 authorization. Signs `accepted` when given
+ * (must be one of the challenge's entries), otherwise the first requirement.
+ */
+export async function createPaymentPayload(
+  account: LocalAccount,
+  challenge: PaymentRequired,
+  accepted: PaymentRequirements | undefined = selectRequirement(challenge),
+): Promise<PaymentPayload> {
+  if (!accepted) throw new Error("No `exact` payment requirement in 402 challenge");
+  const authorization = prepareAuthorization(account.address, accepted);
+  const signature = await account.signTypedData(typedData(accepted, authorization));
+  return assemblePaymentPayload(challenge, accepted, authorization, signature);
 }
 
 /**
