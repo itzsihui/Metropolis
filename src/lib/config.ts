@@ -8,6 +8,8 @@ import {
   type ChainPreset,
 } from "@/lib/chains";
 
+import { alchemyRpcUrl } from "@/lib/alchemy/rpc";
+
 export {
   USDC_ARBITRUM_ONE,
   USDC_ARBITRUM_SEPOLIA,
@@ -76,7 +78,7 @@ function normalizePrivateKey(
 }
 
 export const config = {
-  rpcUrl: env("RPC_URL", preset.rpcUrl),
+  rpcUrl: env("RPC_URL", alchemyRpcUrl(preset.chainId) ?? preset.rpcUrl),
   network,
   chainLabel: preset.label,
   nativeSymbol: preset.nativeSymbol,
@@ -247,7 +249,7 @@ export function chainSettings(target: ChainNetwork = config.network): ChainSetti
     label: p.label,
     family: p.family,
     isTestnet: p.testnet,
-    rpcUrl: env(`RPC_URL_${p.chainId}`, p.rpcUrl),
+    rpcUrl: env(`RPC_URL_${p.chainId}`, alchemyRpcUrl(p.chainId) ?? p.rpcUrl),
     explorerBase: absoluteExplorerBase(
       env(`EXPLORER_BASE_${p.chainId}`, p.explorerBase),
     ),
