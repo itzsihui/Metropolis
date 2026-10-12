@@ -67,6 +67,8 @@ export type BuyerSizingPrefs = {
 export type BuyerAccount = {
   displayName: string;
   email?: string;
+  /** Passkey wallet this profile belongs to (passkey accounts only). */
+  walletAddress?: string;
   onboardedAt: string;
   card: BuyerCardStatus;
   policy: GovernancePolicy;
@@ -167,6 +169,7 @@ export function normalizeBuyerAccount(
   return {
     displayName: String(data.displayName),
     email: data.email ? String(data.email) : undefined,
+    walletAddress: data.walletAddress ? String(data.walletAddress) : undefined,
     onboardedAt: String(data.onboardedAt || new Date().toISOString()),
     card: data.card ?? { issued: false },
     policy: { ...EMPTY_POLICY, ...data.policy },
@@ -265,6 +268,30 @@ export function createBuyerAccount(args: {
     onboardedAt: new Date().toISOString(),
     card: { issued: false },
     policy: { ...EMPTY_POLICY, ...args.policy },
+    rules: [],
+    ledger: [],
+    addresses: [],
+  };
+  writeBuyerAccount(account);
+  return account;
+}
+
+/**
+ * Passkey accounts need no onboarding: the first unlock on a device makes a
+ * default profile for that wallet. A profile left by a different wallet is
+ * replaced, so one browser never mixes two shoppers' ledgers.
+ */
+export function ensurePasskeyBuyerAccount(address: string): BuyerAccount {
+  const current = readBuyerAccount();
+  if (current && current.walletAddress?.toLowerCase() === address.toLowerCase()) {
+    return current;
+  }
+  const account: BuyerAccount = {
+    displayName: `Shopper ${address.slice(0, 6)}…${address.slice(-4)}`,
+    walletAddress: address,
+    onboardedAt: new Date().toISOString(),
+    card: { issued: false },
+    policy: { ...EMPTY_POLICY, maxPerTransaction: 25 },
     rules: [],
     ledger: [],
     addresses: [],
