@@ -23,6 +23,9 @@ library SettleTokens {
         // HyperEVM: USDC
         if (chainId == 998) return _single(0x2B3370eE501B4a559b57D449569354196457D8Ab);
         if (chainId == 999) return _single(0xb88339CB7199b77E23DB6E890353E22632Ba630f);
+        // Monad: USDC
+        if (chainId == 10_143) return _single(0x534b2f3A21130d7a60830c2Df862319e593943A3);
+        if (chainId == 143) return _single(0x754704Bc059F8C67012fEd69BC8A327a5aafb603);
         revert UnsupportedChain(chainId);
     }
 
