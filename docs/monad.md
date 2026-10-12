@@ -47,7 +47,7 @@ npm run dev    # http://localhost:3000 — passkeys need localhost or HTTPS
 1. `/buyer/login` → **Create account with a passkey**. One prompt; the passkey's PRF output derives the wallet. Use iCloud Keychain, Google Password Manager or 1Password (the authenticator must support WebAuthn PRF).
 2. The nav shows the wallet address and the prompt-free session ($25 per payment, $100 per session, 30 minutes).
 3. Send testnet USDC to that address (Circle faucet), then ask the agent for something and pay. The payment is signed in the browser with no prompt and settled by the relayer; the shopper holds no MON.
-4. Stateless check: clear site data or open a fresh browser profile, sign in with the same passkey, and see the same address. With the indexer running, `/buyer/activity` shows the same orders.
+4. Stateless check: clear site data or open a fresh browser profile, sign in with the same passkey, and see the same address.
 
 ## 3. Top up from any chain (Aurora Intents)
 
@@ -58,23 +58,11 @@ Set `AURORA_INTENTS_API_KEY` (from [studio.aurora.dev](https://studio.aurora.dev
 3. Send it. Status moves from waiting → deposit seen → swapping → USDC arrived. Refunds go to the passkey address on EVM chains.
 4. **Back to your order** finishes the purchase automatically with the funds that just arrived.
 
-## 4. Index orders (Envio)
-
-```bash
-cd indexer
-cp .env.example .env        # ENVIO_API_TOKEN, ENVIO_CHECKOUT_MONAD_TESTNET=0x… (and its deploy block)
-npm install
-npm test                    # offline, simulated events
-npm run dev                 # local indexer + GraphQL at http://localhost:8080/v1/graphql
-```
-
-Or deploy to Envio Cloud and set `ENVIO_GRAPHQL_URL` in the app's `.env`.
-
-## 5. Alchemy
+## 4. Alchemy
 
 - `ALCHEMY_API_KEY`: the app uses `https://monad-testnet.g.alchemy.com/v2/<key>` (or `monad-mainnet`) for every server read and settlement.
 - Webhooks: create an **Address Activity** webhook on Monad pointing at `https://<your-site>/api/alchemy/webhook`, then set `ALCHEMY_WEBHOOK_SIGNING_KEY`, `ALCHEMY_WEBHOOK_ID` and `ALCHEMY_NOTIFY_TOKEN`. Each top-up adds the shopper's wallet to the webhook.
 
-## 6. Privy (merchants)
+## 5. Privy (merchants)
 
 Create an app at [dashboard.privy.io](https://dashboard.privy.io), enable email (and Google/passkey if wanted), add Monad, and set `NEXT_PUBLIC_PRIVY_APP_ID`. On `/merchant/setup`, **Create a payout wallet with Privy** → **Use as payout wallet** signs the binding proof. Received USDC can be withdrawn from the same card; set `NEXT_PUBLIC_PRIVY_SPONSOR_GAS=1` once gas sponsorship is enabled for Monad in the Privy dashboard, otherwise the wallet needs a little MON.

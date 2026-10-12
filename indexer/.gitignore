@@ -1,8 +1,0 @@
-node_modules/
-build/
-generated/
-.env
-*.res.js
-*.res.mjs
-.envio/
-envio-env.d.ts

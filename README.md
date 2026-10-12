@@ -5,7 +5,6 @@
 [![Monad](https://img.shields.io/badge/Monad-USDC%20x402-836EF9?style=for-the-badge)](#chains)
 [![Mera](https://img.shields.io/badge/Mera-passkey%20accounts-23292F?style=for-the-badge)](#passkey-accounts-mera)
 [![Aurora Intents](https://img.shields.io/badge/Aurora%20Intents-any--chain%20top--up-70D44B?style=for-the-badge)](#any-chain-top-ups-aurora-intents)
-[![Envio](https://img.shields.io/badge/Envio-HyperIndex-FF6A00?style=for-the-badge)](#on-chain-history-envio)
 [![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 
 **Shop with an AI agent, pay with a passkey. USDC settles on Monad, funded from any chain.**
@@ -38,8 +37,6 @@ flowchart LR
   wallet --> sign[Prompt_free_EIP3009]
   x402 --> sign
   sign --> checkout[BorneoCheckout_on_Monad]
-  checkout --> envio[Envio_index]
-  envio --> history[History_and_XPoints]
 ```
 
 | Step | What happens | Built with |
@@ -48,7 +45,6 @@ flowchart LR
 | Shop | Salesperson agent searches stores and locks a quote (`storeSlug`, `skuId`, `price`, `merchant`) | Borneo agents |
 | Fund | Short on USDC? Top up from Base, Arbitrum, Solana, Bitcoin and 25+ more chains. Aurora delivers USDC to the passkey wallet on Monad, and the order finishes on its own when it lands | **Aurora Intents** Swap API, **Alchemy** webhooks |
 | Pay | The store answers `402`. The server checks the challenge, the browser signs the EIP-3009 authorization inside a scoped passkey session (no prompt), and the relayer settles through `BorneoCheckout` on Monad. The shopper needs no MON | **Mera** session, **Alchemy** RPC |
-| Remember | Orders, fees and XPoints are indexed from chain, so history survives cleared storage and new devices | **Envio** HyperIndex |
 | Get paid | Merchants sign in with email and get a Privy embedded payout wallet, which signs the payout proof and withdraws USDC | **Privy** |
 
 ### Passkey accounts (Mera)
@@ -57,7 +53,7 @@ flowchart LR
 
 - **One-prompt onboarding.** `createPasskeyWithPrfOutput` → BIP-39/32 (`m/44'/60'/0'/0/0`) → `createSecp256k1SigningSession` → `toViemAccount`. No email, no OTP, no seed phrase, no extension, no custody backend.
 - **Scoped prompt-free signing.** The session signs only EIP-3009 payment authorizations, only on known stablecoins and chains, up to $25 per payment (or the shopper's own lower governance limit) and $100 per session, for 30 minutes or until 10 idle minutes. Anything outside that, or after expiry, asks for the passkey again (step-up) before signing. The key copy is zeroed on lock, expiry and tab close.
-- **Stateless test.** The only thing in localStorage is an untrusted hint (credential id + address) to pin the passkey. Clear it, or open a fresh device: the passkey rebuilds the same address, and the Envio index rebuilds order history and XPoints from chain.
+- **Stateless test.** The only thing in localStorage is an untrusted hint (credential id + address) to pin the passkey. Clear it, or open a fresh device: the passkey rebuilds the same address.
 - **The server never signs for the shopper.** `/api/buyer-agent` runs discovery and the capability checks (recomputes the order nonce, checks payTo, asset and amount against the locked quote) and returns the unsigned authorization. The browser signs it; `/api/buyer-agent/sign` verifies the signature and relays it.
 
 ### Any-chain top-ups (Aurora Intents)
@@ -68,15 +64,6 @@ flowchart LR
 - Refunds default to the passkey wallet itself on any EVM origin chain, since the same key controls the same address everywhere. Non-EVM origins ask for a refund address.
 - The page polls `/api/status`, can report the deposit tx (`/api/deposit/submit`) to speed it up, and handles `INCOMPLETE_DEPOSIT`, `REFUNDED` and `FAILED`. On `SUCCESS` the shopper returns to the order and the agent **finishes the purchase automatically** with the funds that just arrived.
 - The server fixes the destination (Circle USDC on Monad mainnet) and validates the recipient, so the proxy can only ever deliver USDC on Monad to an EVM address.
-
-### On-chain history (Envio)
-
-[`indexer/`](./indexer) (HyperIndex: `config.yaml`, `schema.graphql`, `src/handlers/BorneoCheckout.ts`, tests) · [`src/lib/envio/checkout-index.ts`](./src/lib/envio/checkout-index.ts)
-
-- Indexes every `BorneoCheckout` on Monad Testnet, Monad, Arbitrum Sepolia and Base Sepolia: `OrderSettled`, `TokenAllowed`, `FeeUpdated`, `TreasuryUpdated`, `Paused`/`Unpaused`.
-- Derived entities: per-merchant gross, net, fees, unique and repeat buyers; per-buyer spend, XPoints and merchant count; per-token volume; per-day orders, volume, fees and active buyers; per-checkout totals.
-- Drives three features: the shopper's on-chain order history (`/buyer/activity`), on-chain XPoints (`/buyer/xpoints`) and the merchant's sales card (`/dashboard`).
-- Offline tests feed simulated events through `createTestIndexer()` (`cd indexer && npm test`).
 
 ### Alchemy
 
@@ -103,7 +90,7 @@ One codebase and one contract serve every chain. `CHAIN_NETWORK` picks the prima
 | Intent | `/buyer` salesperson + `GET /api/search` |
 | Fund | `/buyer/fund` · `/api/aurora/{tokens,quote,status,submit}` |
 | Buy (x402) | `POST /s/{slug}/buy` → **402** → passkey signs EIP-3009 → settle on Monad |
-| Remember | `/buyer/activity` · `/api/onchain/{buyer,merchant,overview}` |
+| Remember | `/buyer/activity` |
 | Earn | `/buyer/xpoints` · invite `?ref=` boost |
 | Skills | [`.agents/skills/borneo-registry-shop`](./.agents/skills/borneo-registry-shop/SKILL.md) |
 
@@ -163,7 +150,7 @@ End-to-end against a running server: `npx tsx --env-file=.env scripts/e2e-checko
 npm install
 cp .env.example .env
 # Monad: deploy BorneoCheckout, fund the relayer with MON (docs/monad.md)
-# Optional keys: AURORA_INTENTS_API_KEY, ENVIO_GRAPHQL_URL, ALCHEMY_API_KEY, NEXT_PUBLIC_PRIVY_APP_ID
+# Optional keys: AURORA_INTENTS_API_KEY, ALCHEMY_API_KEY, NEXT_PUBLIC_PRIVY_APP_ID
 npm run chains:check   # preflight: RPC, token, EIP-712 domain, checkout, relayer gas
 npm run dev            # passkeys need HTTPS or localhost
 ```
@@ -174,11 +161,11 @@ npm run dev            # passkeys need HTTPS or localhost
 | `/buyer/login` | One-prompt passkey sign-in (Mera) |
 | `/buyer` | Intent chat → passkey-signed USDC on Monad / Visa |
 | `/buyer/fund` | Any-chain top-up (Aurora Intents) |
-| `/buyer/activity` | Local ledger + on-chain orders (Envio) |
-| `/buyer/xpoints` | XPoints balance, on-chain XPoints, invite loop |
+| `/buyer/activity` | Purchase ledger and reviews |
+| `/buyer/xpoints` | XPoints balance and invite loop |
 | `/merchant/setup` | Privy payout wallet, Visa receive, governance |
 | `/merchant` · `/onboard` | Seller chat → publish agent storefront |
-| `/dashboard` | Merchant orders + on-chain sales (Envio) |
+| `/dashboard` | Merchant orders |
 | `/market` | Marketplace index |
 | `/registry.json` | Network store index |
 | `/demo` | Judge handshake script |
@@ -195,7 +182,6 @@ npm run dev            # passkeys need HTTPS or localhost
 | `MERCHANT_ADDRESS` | Default merchant payTo (`0x…`) |
 | `NEXT_PUBLIC_BUYER_ACCOUNTS` | `passkey` (default, Mera) or `firebase` (email sign-in + server agent wallet) |
 | `AURORA_INTENTS_API_KEY` | Aurora Intents Swap API key (studio.aurora.dev) |
-| `ENVIO_GRAPHQL_URL` | GraphQL endpoint of the deployed `indexer/` |
 | `ALCHEMY_API_KEY` | Alchemy RPC for Monad, Arbitrum and Base |
 | `ALCHEMY_WEBHOOK_SIGNING_KEY` · `ALCHEMY_WEBHOOK_ID` · `ALCHEMY_NOTIFY_TOKEN` | Address Activity webhook for top-up arrivals |
 | `NEXT_PUBLIC_PRIVY_APP_ID` · `NEXT_PUBLIC_PRIVY_SPONSOR_GAS` | Privy merchant payout wallets |
@@ -242,7 +228,6 @@ npm run dev            # passkeys need HTTPS or localhost
 - [ ] BorneoCheckout deployed on Monad (testnet and/or mainnet) and `npm run chains:check` passing
 - [ ] Settled passkey purchase on Monad with explorer link
 - [ ] Live Aurora top-up: funds from another chain arrive and complete an order
-- [ ] Envio indexer deployed, `ENVIO_GRAPHQL_URL` set, history rebuilt after clearing storage
 - [ ] Prior work disclosed in the submission form
 - [ ] Submit before Oct 14, 2026 11:59 GMT+8
 

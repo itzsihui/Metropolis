@@ -14,7 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMerchantAuth } from "@/app/merchant/_components/merchant-auth-provider";
-import { OnchainSales } from "@/components/merchant/onchain-sales";
 import { shortAddress } from "@/lib/wallet/ethereum";
 import type { Order, Review, StoreRecord } from "@/lib/store/types";
 
@@ -196,8 +195,6 @@ export default function DashboardPage() {
               ) : null}
             </div>
           </div>
-
-          <OnchainSales address={wallet} />
 
           {merchant.profile?.governance ? (
             <div className="mt-3 border border-border bg-background px-4 py-3 text-sm text-muted-foreground">

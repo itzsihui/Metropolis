@@ -6,7 +6,7 @@ Source of truth for this prototype. Landing copy, demo script, and product decis
 
 **Dials:** `DESIGN_VARIANCE: 6` · `MOTION_INTENSITY: 5` · `VISUAL_DENSITY: 4`
 
-**Primary track:** Consumer Products & Payments (Monad Metropolis). Bounties: Aurora Intents, Mera, Envio, Alchemy, Privy — see `docs/submission.md`.
+**Primary track:** Consumer Products & Payments (Monad Metropolis). Bounties: Aurora Intents, Mera, Alchemy, Privy — see `docs/submission.md`.
 
 ---
 

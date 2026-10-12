@@ -19,7 +19,6 @@ The track asks for financial products that use onchain rails as a design advanta
 | Gas token | Relayer pays MON; shopper signs an EIP-3009 authorization only |
 | Right token on the right chain | Aurora Intents swaps anything on 30+ chains into USDC on Monad |
 | A checkout page | x402: the agent pays the store over HTTP; Monad's 400 ms blocks make it feel instant |
-| Trusting a backend with history | Envio rebuilds orders and XPoints from chain |
 
 ## Prior work (disclose in the form)
 
@@ -29,7 +28,6 @@ Borneo started at earlier hackathons: the agent storefront protocol, the buyer a
 - Mera passkey accounts as the entire buyer account layer, with a scoped prompt-free signing session and step-up re-prompts
 - Splitting x402 signing so the browser signs and the server never holds the shopper's key
 - Aurora Intents any-chain top-ups with automatic order completion
-- The Envio HyperIndex indexer and the on-chain history, XPoints and merchant sales features
 - Alchemy RPC and Address Activity webhooks
 - Privy merchant payout wallets
 
@@ -48,16 +46,10 @@ Borneo started at earlier hackathons: the agent storefront protocol, the buyer a
 **How we integrate:** Mera is the entire buyer account layer. `createPasskeyWithPrfOutput` creates the account in one ceremony; the PRF output maps through BIP-39/32 to one secp256k1 key; `createSecp256k1SigningSession` + `toViemAccount` signs. There is no email, no OTP, no seed phrase, no extension and no custody backend: the server returns unsigned EIP-3009 authorizations and the browser signs them.
 
 - **Session design:** prompt-free only for stablecoin payment authorizations (`TransferWithAuthorization` / `ReceiveWithAuthorization`) on known tokens and chains, capped at $25 per payment (lower if the shopper's own governance limit is lower) and $100 per session, for 30 minutes or 10 idle minutes. Anything else re-prompts. Expiry and lock zero the key copy (`session.end()`), as does closing the tab. The nav shows remaining prompt-free budget and minutes.
-- **Stateless test:** localStorage holds only an untrusted hint (credential id + address). Clear it or use a fresh device: the passkey rebuilds the same address, and order history plus XPoints come back from the Envio index.
+- **Stateless test:** localStorage holds only an untrusted hint (credential id + address). Clear it or use a fresh device: the passkey rebuilds the same address.
 - **Stack composability:** gas abstraction (relayer pays MON), intents (Aurora top-ups into the passkey wallet), cross-chain account (the same passkey address receives refunds on any EVM chain).
 
 **Code:** `src/lib/mera/*`, `src/app/buyer/_components/passkey-*.tsx`, `src/app/buyer/_lib/passkey-checkout.ts`, `src/app/api/buyer-agent/sign/route.ts`, `scripts/mera-scope.test.mts`.
-
-### Best Use of Envio
-
-**How we integrate:** HyperIndex project in `indexer/` (public `config.yaml`, `schema.graphql`, `src/handlers/BorneoCheckout.ts`, tests). It indexes every BorneoCheckout deployment across four chains (Monad Testnet, Monad, Arbitrum Sepolia, Base Sepolia) and derives merchant, buyer, merchant-buyer, token, daily and checkout rollups (gross/net/fees, unique and repeat buyers, active buyers per day, XPoints). The app consumes it for three features: the shopper's on-chain order history (the backbone of the Mera stateless test), on-chain XPoints, and the merchant's sales card.
-
-**Code:** `indexer/`, `src/lib/envio/checkout-index.ts`, `src/app/api/onchain/*`, `src/app/buyer/_components/onchain-history.tsx`, `src/components/merchant/onchain-sales.tsx`.
 
 ### Best Projects using Alchemy
 
@@ -76,13 +68,12 @@ Borneo started at earlier hackathons: the agent storefront protocol, the buyer a
 1. Fresh browser → `/buyer/login` → **Create account with a passkey** (one prompt). Show the address and the session chip.
 2. "Find me a cap under $1" → agent locks a quote → Pay. Wallet is empty → **Top up from any chain**.
 3. Pick USDC on Base → deposit address → send from a phone wallet → status reaches *USDC arrived* (Alchemy line appears) → **Back to your order** → the agent pays with no prompt; open the Monad explorer link.
-4. `/buyer/activity`: order shows under On-chain orders (Envio). Clear site data, sign in with the same passkey: same address, same history.
-5. Merchant view: `/merchant/setup` → Privy payout wallet → `/dashboard` on-chain sales card.
+4. Clear site data, sign in with the same passkey: same address.
+5. Merchant view: `/merchant/setup` → Privy payout wallet → `/dashboard`.
 
 ## Before submitting
 
 - [ ] Deploy BorneoCheckout on Monad and run `npm run chains:check` (see `docs/monad.md`)
 - [ ] Settle one passkey purchase on Monad and keep the explorer link
 - [ ] Run one real Aurora top-up on mainnet and record it
-- [ ] Deploy the indexer and set `ENVIO_GRAPHQL_URL`
 - [ ] Live HTTPS link, demo video, pitch video, public repo

@@ -3,8 +3,6 @@
 import { config } from "@/lib/config";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { pointsFromFeeAtomic } from "@/lib/ownership-math";
-import { useOnchainHistory } from "../_components/onchain-history";
 import {
   ownershipInviteUrl,
   readOwnership,
@@ -14,8 +12,6 @@ import {
 export default function BuyerXPointsPage() {
   const [state, setState] = useState<OwnershipState | null>(null);
   const [copied, setCopied] = useState(false);
-  const onchain = useOnchainHistory();
-
   useEffect(() => {
     setState(readOwnership());
   }, []);
@@ -64,16 +60,6 @@ export default function BuyerXPointsPage() {
             XPoints
           </span>
         </p>
-        {onchain.reply?.totals ? (
-          <p className="mt-2 text-sm text-foreground/70">
-            On-chain:{" "}
-            <span className="tabular-nums">
-              {pointsFromFeeAtomic(onchain.reply.totals.xpoints)}
-            </span>{" "}
-            XPoints credited by BorneoCheckout across {onchain.reply.totals.chains} chain
-            {onchain.reply.totals.chains === 1 ? "" : "s"} (Envio index)
-          </p>
-        ) : null}
         <p className="mt-2 text-xs text-foreground/50">
           Demo rewards ledger — not a token or a security. Merchant still
           receives full listed USDC.
