@@ -116,6 +116,8 @@ function FundInner() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState("");
+  const [quotedAt, setQuotedAt] = useState<string | null>(null);
+  const [arrival, setArrival] = useState<{ value: string; asset: string; hash: string } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -202,11 +204,24 @@ function FundInner() {
         .catch(() => null)) as StatusReply | null;
       if (data?.status) setStatus(data);
       if (data?.status === "SUCCESS") void loadBalance();
+      // Alchemy pushes the delivery to us as soon as it lands (when webhooks are set up).
+      if (wallet.address && quotedAt) {
+        const pushed = (await fetch(
+          `/api/alchemy/arrivals?address=${wallet.address}&since=${encodeURIComponent(quotedAt)}`,
+        )
+          .then((r) => r.json())
+          .catch(() => null)) as { arrivals?: Array<{ value: string; asset: string; hash: string }> } | null;
+        const last = pushed?.arrivals?.at(-1);
+        if (last) {
+          setArrival(last);
+          void loadBalance();
+        }
+      }
     };
     void poll();
     const timer = setInterval(() => void poll(), 5_000);
     return () => clearInterval(timer);
-  }, [quote, status?.status, loadBalance]);
+  }, [quote, status?.status, loadBalance, wallet.address, quotedAt]);
 
   async function getDepositAddress() {
     if (!origin || !amountAtomic || !wallet.address) return;
@@ -230,6 +245,8 @@ function FundInner() {
         throw new Error(data.error || "No deposit address returned");
       }
       setQuote(data.quote);
+      setQuotedAt(new Date().toISOString());
+      setArrival(null);
       setStatus({ status: "PENDING_DEPOSIT" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Quote failed");
@@ -458,6 +475,12 @@ function FundInner() {
                 Report
               </Button>
             </div>
+          ) : null}
+
+          {arrival ? (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              Alchemy saw {arrival.value} {arrival.asset} land in your wallet ({short(arrival.hash)})
+            </p>
           ) : null}
 
           {status?.swapDetails?.destinationChainTxHashes?.length ? (
