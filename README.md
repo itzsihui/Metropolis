@@ -2,16 +2,15 @@
 
 # Borneo
 
-[![Arbitrum](https://img.shields.io/badge/Arbitrum-USDC%20x402-12AAFF?style=for-the-badge)](#chains)
-[![Base](https://img.shields.io/badge/Base-USDC%20x402-0052FF?style=for-the-badge)](#chains)
-[![HyperEVM](https://img.shields.io/badge/HyperEVM-USDC%20x402-50D2C1?style=for-the-badge)](#chains)
-[![Agentic commerce](https://img.shields.io/badge/Agentic-commerce-0B6E4F?style=for-the-badge)](#borneo)
-[![Protocol](https://img.shields.io/badge/Open%20protocol-any%20HTTP%20agent-23292F?style=for-the-badge)](#borneo)
+[![Monad](https://img.shields.io/badge/Monad-USDC%20x402-836EF9?style=for-the-badge)](#chains)
+[![Mera](https://img.shields.io/badge/Mera-passkey%20accounts-23292F?style=for-the-badge)](#passkey-accounts-mera)
+[![Aurora Intents](https://img.shields.io/badge/Aurora%20Intents-any--chain%20top--up-70D44B?style=for-the-badge)](#any-chain-top-ups-aurora-intents)
+[![Envio](https://img.shields.io/badge/Envio-HyperIndex-FF6A00?style=for-the-badge)](#on-chain-history-envio)
 [![Next.js](https://img.shields.io/badge/Next.js-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 
-**Intent → route → settle → earn. AI shopping agents that pay in USDC on Arbitrum, Base and HyperEVM.**
+**Shop with an AI agent, pay with a passkey. USDC settles on Monad, funded from any chain.**
 
-Landing → [http://localhost:3000](http://localhost:3000) · Chains → [`docs/chains.md`](./docs/chains.md) · Arbitrum setup → [`scripts/setup-arbitrum-usdc.md`](./scripts/setup-arbitrum-usdc.md)
+Landing → [http://localhost:3000](http://localhost:3000) · Chains → [`docs/chains.md`](./docs/chains.md) · Monad setup → [`docs/monad.md`](./docs/monad.md) · Submission → [`docs/submission.md`](./docs/submission.md)
 
 </div>
 
@@ -19,46 +18,93 @@ Landing → [http://localhost:3000](http://localhost:3000) · Chains → [`docs/
 
 ## The problem
 
-More people are sending AI buyer agents to shop for them, but sellers aren't ready: for every 10 buyer agents there is roughly 1 seller agent. Most storefronts are built for humans, so agents scrape pages or give up, and merchants lose buyers they never see.
+More people are sending AI buyer agents to shop for them, but sellers aren't ready: most storefronts are built for humans, so agents scrape pages or give up, and merchants lose buyers they never see.
 
-Paying is just as hard. Users hold fragmented assets, so buying products, tokenized RWAs, or micro-payments usually means manual swaps and separate rails. Agent catalogs are often walled inside a few chat apps, and agents have no safe, open way to pay merchants.
+Paying is harder still for people who don't think of themselves as crypto users. They would need a wallet extension, a seed phrase, a gas token, and the right stablecoin on the right chain before an agent could spend a cent for them.
 
-Borneo makes any online store readable by AI agents in seconds, and lets agents pay safely in USDC on Arbitrum, Base and HyperEVM.
+Borneo makes any online store readable by AI agents in seconds, and lets a shopper's agent pay in USDC on Monad with nothing but a passkey.
 
-## Borneo @ Crypto World's Fair
+## Borneo @ Monad Metropolis
 
-**An AI-native shopping agent** takes natural-language intent, **routes liquidity** into USDC, **settles with x402**, and credits **XPoints** from a protocol micro-fee — so conversion is seamless *and* users earn rewards. Any HTTP agent can shop any Borneo store: the store answers `402 Payment Required` listing every chain it accepts, the agent signs a USDC authorization for one of them, and settlement lands on that chain in one round trip.
+Track: **Consumer Products & Payments.** A shopper says what they want, the agent finds it across Borneo stores, and pays the store over HTTP 402 (x402) in USDC on Monad. The shopper never sees a seed phrase, an extension, a gas token or a bridge.
 
 ```mermaid
 flowchart LR
-  intent[Intent_chat] --> route[Liquidity_route]
-  route --> settle[USDC_x402]
-  settle --> arb[Arbitrum]
-  settle --> base[Base]
-  settle --> hyper[HyperEVM]
-  arb --> earn[XPoints]
-  base --> earn
-  hyper --> earn
+  passkey[Passkey_Mera] --> wallet[Wallet_on_Monad]
+  anychain[Any_chain_asset] --> aurora[Aurora_Intents]
+  aurora --> wallet
+  intent[Intent_chat] --> agent[Buyer_agent]
+  agent --> x402[402_challenge]
+  wallet --> sign[Prompt_free_EIP3009]
+  x402 --> sign
+  sign --> checkout[BorneoCheckout_on_Monad]
+  checkout --> envio[Envio_index]
+  envio --> history[History_and_XPoints]
 ```
+
+| Step | What happens | Built with |
+|---|---|---|
+| Sign up | One passkey ceremony creates the account. The passkey's PRF output derives the wallet key, so the same passkey rebuilds the same Monad address on any device | **Mera** |
+| Shop | Salesperson agent searches stores and locks a quote (`storeSlug`, `skuId`, `price`, `merchant`) | Borneo agents |
+| Fund | Short on USDC? Top up from Base, Arbitrum, Solana, Bitcoin and 25+ more chains. Aurora delivers USDC to the passkey wallet on Monad, and the order finishes on its own when it lands | **Aurora Intents** Swap API, **Alchemy** webhooks |
+| Pay | The store answers `402`. The server checks the challenge, the browser signs the EIP-3009 authorization inside a scoped passkey session (no prompt), and the relayer settles through `BorneoCheckout` on Monad. The shopper needs no MON | **Mera** session, **Alchemy** RPC |
+| Remember | Orders, fees and XPoints are indexed from chain, so history survives cleared storage and new devices | **Envio** HyperIndex |
+| Get paid | Merchants sign in with email and get a Privy embedded payout wallet, which signs the payout proof and withdraws USDC | **Privy** |
+
+### Passkey accounts (Mera)
+
+[`src/lib/mera/passkey-account.ts`](./src/lib/mera/passkey-account.ts) · [`passkey-wallet-provider.tsx`](./src/app/buyer/_components/passkey-wallet-provider.tsx) · [`session-scope.ts`](./src/lib/mera/session-scope.ts)
+
+- **One-prompt onboarding.** `createPasskeyWithPrfOutput` → BIP-39/32 (`m/44'/60'/0'/0/0`) → `createSecp256k1SigningSession` → `toViemAccount`. No email, no OTP, no seed phrase, no extension, no custody backend.
+- **Scoped prompt-free signing.** The session signs only EIP-3009 payment authorizations, only on known stablecoins and chains, up to $25 per payment (or the shopper's own lower governance limit) and $100 per session, for 30 minutes or until 10 idle minutes. Anything outside that, or after expiry, asks for the passkey again (step-up) before signing. The key copy is zeroed on lock, expiry and tab close.
+- **Stateless test.** The only thing in localStorage is an untrusted hint (credential id + address) to pin the passkey. Clear it, or open a fresh device: the passkey rebuilds the same address, and the Envio index rebuilds order history and XPoints from chain.
+- **The server never signs for the shopper.** `/api/buyer-agent` runs discovery and the capability checks (recomputes the order nonce, checks payTo, asset and amount against the locked quote) and returns the unsigned authorization. The browser signs it; `/api/buyer-agent/sign` verifies the signature and relays it.
+
+### Any-chain top-ups (Aurora Intents)
+
+[`src/lib/aurora/intents.ts`](./src/lib/aurora/intents.ts) · [`/buyer/fund`](./src/app/buyer/fund/page.tsx)
+
+- When the passkey wallet is short, checkout links to `/buyer/fund` prefilled with the exact shortfall. The shopper picks what they hold (any chain and token Aurora lists), gets an `EXACT_OUTPUT` quote for that many USDC on Monad, and sends to a one-time deposit address.
+- Refunds default to the passkey wallet itself on any EVM origin chain, since the same key controls the same address everywhere. Non-EVM origins ask for a refund address.
+- The page polls `/api/status`, can report the deposit tx (`/api/deposit/submit`) to speed it up, and handles `INCOMPLETE_DEPOSIT`, `REFUNDED` and `FAILED`. On `SUCCESS` the shopper returns to the order and the agent **finishes the purchase automatically** with the funds that just arrived.
+- The server fixes the destination (Circle USDC on Monad mainnet) and validates the recipient, so the proxy can only ever deliver USDC on Monad to an EVM address.
+
+### On-chain history (Envio)
+
+[`indexer/`](./indexer) (HyperIndex: `config.yaml`, `schema.graphql`, `src/handlers/BorneoCheckout.ts`, tests) · [`src/lib/envio/checkout-index.ts`](./src/lib/envio/checkout-index.ts)
+
+- Indexes every `BorneoCheckout` on Monad Testnet, Monad, Arbitrum Sepolia and Base Sepolia: `OrderSettled`, `TokenAllowed`, `FeeUpdated`, `TreasuryUpdated`, `Paused`/`Unpaused`.
+- Derived entities: per-merchant gross, net, fees, unique and repeat buyers; per-buyer spend, XPoints and merchant count; per-token volume; per-day orders, volume, fees and active buyers; per-checkout totals.
+- Drives three features: the shopper's on-chain order history (`/buyer/activity`), on-chain XPoints (`/buyer/xpoints`) and the merchant's sales card (`/dashboard`).
+- Offline tests feed simulated events through `createTestIndexer()` (`cd indexer && npm test`).
+
+### Alchemy
+
+- **RPC:** with `ALCHEMY_API_KEY` set, every server read, x402 settlement and relayer transaction on Monad (and Arbitrum/Base) goes through Alchemy's node endpoints ([`src/lib/alchemy/rpc.ts`](./src/lib/alchemy/rpc.ts)).
+- **Webhooks:** when a shopper asks for a top-up, their wallet is added to an Address Activity webhook through the Notify API. `/api/alchemy/webhook` verifies `X-Alchemy-Signature` and records stablecoin arrivals, which the top-up page shows the moment Aurora's delivery lands ([`src/lib/alchemy/webhooks.ts`](./src/lib/alchemy/webhooks.ts)).
+
+### Privy (merchants)
+
+[`src/components/merchant/privy-payout-wallet.tsx`](./src/components/merchant/privy-payout-wallet.tsx) on `/merchant/setup`: email/Google/passkey sign-in creates a Privy embedded wallet, the wallet signs the payout-binding proof (`useSignMessage`), and the merchant withdraws received USDC with `useSendTransaction` (Privy gas sponsorship when enabled). Merchants no longer paste private keys into the page.
 
 ### Chains
 
 | Chain | Testnet | Mainnet | Settle token | BorneoCheckout |
 |---|---|---|---|---|
+| **Monad** (primary) | `eip155:10143` | `eip155:143` | Circle USDC | Deploy with `--rpc-url monad_testnet` / `monad` ([`docs/monad.md`](./docs/monad.md)) |
 | Arbitrum | `eip155:421614` | `eip155:42161` | USDC, Paxos USDG | Live on Arbitrum Sepolia |
 | Base | `eip155:84532` | `eip155:8453` | USDC | Live on Base Sepolia |
 | HyperEVM | `eip155:998` | `eip155:999` | USDC | Live on HyperEVM Testnet |
 
-One codebase and one contract serve all three. `CHAIN_NETWORK` picks the primary chain and `SETTLE_NETWORKS` adds more, so a single 402 can offer several chains and the buyer agent pays on the first one where its wallet holds enough. The Uniswap route quote and the ETH gas bridge are Arbitrum features and switch off elsewhere. Setup, deploy commands and what is and isn't verified: [`docs/chains.md`](./docs/chains.md).
+One codebase and one contract serve every chain. `CHAIN_NETWORK` picks the primary chain (Monad Testnet by default) and `SETTLE_NETWORKS` adds more, so a single 402 can offer several chains. Aurora Intents runs on mainnets, so the full any-chain top-up demo uses `CHAIN_NETWORK=eip155:143`.
 
 | Step | Surface |
 |---|---|
 | Intent | `/buyer` salesperson + `GET /api/search` |
-| Route | `GET/POST /api/liquidity` · Uniswap V3 quote (Arbitrum One) · outfit liquidity map |
-| Buy (x402) | `POST /s/{slug}/buy` → **402** → sign EIP-3009 → settle on Arbitrum, Base or HyperEVM |
+| Fund | `/buyer/fund` · `/api/aurora/{tokens,quote,status,submit}` |
+| Buy (x402) | `POST /s/{slug}/buy` → **402** → passkey signs EIP-3009 → settle on Monad |
+| Remember | `/buyer/activity` · `/api/onchain/{buyer,merchant,overview}` |
 | Earn | `/buyer/xpoints` · invite `?ref=` boost |
-| Outfit demo | `/s/atelier-tee` · `/s/harbor-caps` · `/s/stride-kicks` |
-| RWA demo | `/s/arbitrum-rwa-desk` tokenized claim SKUs |
 | Skills | [`.agents/skills/borneo-registry-shop`](./.agents/skills/borneo-registry-shop/SKILL.md) |
 
 **Do not scrape HTML.** Catalog prose never enters the pay path — settle only sees a locked quote (`storeSlug`, `skuId`, `price`, `merchantAddress`). XPoints are a rewards ledger driven by the protocol fee (not a token or security).
