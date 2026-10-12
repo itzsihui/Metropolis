@@ -1,6 +1,7 @@
 "use client";
 
 import { config } from "@/lib/config";
+import { usePasskeyWallet } from "./passkey-wallet-provider";
 import { useEffect, useMemo, useState } from "react";
 import {
   cartSettlementTotal,
@@ -52,6 +53,7 @@ export function LiquidityMapPanel({
   lines: OutfitLineInput[];
   enabled: boolean;
 }) {
+  const wallet = usePasskeyWallet();
   const [route, setRoute] = useState<RoutePreview | null>(null);
   const [openPools, setOpenPools] = useState(true);
 
@@ -99,6 +101,7 @@ export function LiquidityMapPanel({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         execute: false,
+        buyerAddress: wallet.address ?? undefined,
         lines: settleLines.map((l) => ({
           storeSlug: l.storeSlug,
           storeName: l.storeName,
@@ -123,7 +126,7 @@ export function LiquidityMapPanel({
     return () => {
       cancelled = true;
     };
-  }, [enabled, settleLines]);
+  }, [enabled, settleLines, wallet.address]);
 
   if (!enabled || settleLines.length === 0) return null;
 
@@ -142,14 +145,14 @@ export function LiquidityMapPanel({
         {route?.balances ? (
           <p className="mt-1 text-xs text-foreground/55">
             Wallet: {route.balances.tokenHuman ?? "—"} settle-token ·{" "}
-            {route.balances.nativeHuman ?? "—"} ETH
+            {route.balances.nativeHuman ?? "—"} {config.nativeSymbol}
             {route.balances.hasEnoughToken
               ? " (covers)"
               : " (will route if short)"}
           </p>
         ) : (
           <p className="mt-1 text-xs text-foreground/55">
-            Set BUYER_PRIVATE_KEY to load live wallet balances.
+            Unlock your passkey wallet to load live balances.
           </p>
         )}
       </div>
