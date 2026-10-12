@@ -1,8 +1,13 @@
+import { getAddress, verifyTypedData, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import {
+  assemblePaymentPayload,
+  authorizationTypedData,
   checkoutOrderNonce,
   createPaymentPayload,
   encodePaymentSignatureHeader,
+  prepareAuthorization,
+  type Eip3009Authorization,
   readTokenBalance,
   selectRequirement,
   type PaymentRequired,
@@ -176,6 +181,42 @@ export type PayQuote = {
   settleSymbol?: string;
 };
 
+/**
+ * A payment waiting on a signature from the buyer's own wallet (a passkey
+ * account in the browser). The server never holds that key: it returns the
+ * unsigned authorization, the browser signs it, and submitX402Signature
+ * finishes the handshake with the same order id.
+ */
+export type PendingX402 = {
+  slug: string;
+  skuId: string;
+  orderId: string;
+  buyerUid?: string;
+  challenge: PaymentRequired;
+  accept: PaymentRequirements;
+  authorization: Eip3009Authorization;
+  viaCheckout: boolean;
+};
+
+/** The buyer wallet holds too little of the settle token on the pay chain. */
+export type FundingNeeded = {
+  network: string;
+  chainLabel: string;
+  asset: string;
+  symbol: string;
+  address: string;
+  balanceAtomic: string;
+  requiredAtomic: string;
+  shortfallAtomic: string;
+};
+
+export type PayX402Result = {
+  steps: BuyerStep[];
+  receipt?: BuyerReceipt;
+  pending?: PendingX402;
+  funding?: FundingNeeded;
+};
+
 export { extractRequestedProduct } from "@/lib/agents/discover";
 
 /**
@@ -190,8 +231,15 @@ export async function payX402Tool(args: {
   product?: string;
   quote?: PayQuote;
   buyerUid?: string;
-}): Promise<{ steps: BuyerStep[]; receipt?: BuyerReceipt }> {
+  /**
+   * The buyer's own wallet address. When set, the server never signs: it runs
+   * discovery and the capability checks, then returns `pending` for the
+   * browser to sign (or `funding` when the wallet is short).
+   */
+  buyerAddress?: string;
+}): Promise<PayX402Result> {
   const steps: BuyerStep[] = [];
+  const external = args.buyerAddress ? getAddress(args.buyerAddress) : undefined;
   const quote = args.quote;
   const buyerUid = args.buyerUid?.trim() || undefined;
 
@@ -276,15 +324,15 @@ export async function payX402Tool(args: {
     return { steps };
   }
 
-  steps.push({
+  let routeSwapTx: string | undefined;
+  let routeSummary: string | undefined;
+  if (!external) steps.push({
     type: "info",
     text: config.isArbitrum
       ? `Routing liquidity on Arbitrum (${settleSymbol} balance → Uniswap V3 if short)`
       : `Checking ${settleSymbol} balance on ${config.chainLabel}`,
   });
-  let routeSwapTx: string | undefined;
-  let routeSummary: string | undefined;
-  try {
+  if (!external) try {
     const route = await ensureSettleLiquidity({
       price: expectedPrice,
       quantity: 1,
@@ -359,11 +407,12 @@ export async function payX402Tool(args: {
     return { steps };
   }
 
-  const buyerKey = config.buyerPrivateKey;
+  const buyerKey = external ? undefined : config.buyerPrivateKey;
   const account = buyerKey ? privateKeyToAccount(buyerKey) : undefined;
+  const payer = external ?? account?.address;
 
   const offered = (challenge.accepts ?? []).map((a) => chainLabelFor(a.network));
-  const { accept, note } = await chooseRequirement(challenge, account?.address);
+  const { accept, note } = await chooseRequirement(challenge, payer);
   if (!accept) {
     steps.push({
       type: "error",
@@ -418,6 +467,22 @@ export async function payX402Tool(args: {
       : "Capability check passed: payTo + amount match locked quote",
   });
 
+  if (external) {
+    return await prepareExternalSignature({
+      steps,
+      slug,
+      skuId: sku.id,
+      orderId,
+      buyerUid,
+      challenge,
+      accept,
+      payer: external,
+      payChain,
+      humanAmount,
+      viaCheckout: payToCheck.viaCheckout,
+    });
+  }
+
   if (!account) {
     emit({
       status: 402,
@@ -468,17 +533,47 @@ export async function payX402Tool(args: {
       : `Signed. Relayer submits transferWithAuthorization on ${payChain}`,
   });
 
+  return await finishPurchase({
+    steps,
+    base,
+    skuId: sku.id,
+    orderId,
+    buyerUid,
+    paymentHeader,
+    accept,
+    viaCheckout: payToCheck.viaCheckout,
+    routeSwapTx,
+    routeSummary,
+  });
+}
+
+/** POST /buy again with the signed payment and turn the reply into steps. */
+async function finishPurchase(args: {
+  steps: BuyerStep[];
+  base: string;
+  skuId: string;
+  orderId: string;
+  buyerUid?: string;
+  paymentHeader: string;
+  accept: PaymentRequirements;
+  viaCheckout: boolean;
+  routeSwapTx?: string;
+  routeSummary?: string;
+}): Promise<PayX402Result> {
+  const { steps, base, accept, routeSwapTx, routeSummary } = args;
+  const payChain = chainLabelFor(accept.network);
+  const challengeSymbol = String(accept.extra?.settleSymbol || config.tokenSymbol);
   const second = await fetch(`${base}/buy`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "PAYMENT-SIGNATURE": paymentHeader,
+      "PAYMENT-SIGNATURE": args.paymentHeader,
     },
     body: JSON.stringify({
-      skuId: sku.id,
+      skuId: args.skuId,
       quantity: 1,
-      orderId,
-      buyerUid,
+      orderId: args.orderId,
+      buyerUid: args.buyerUid,
       swapTxHash: routeSwapTx,
     }),
   });
@@ -509,7 +604,7 @@ export async function payX402Tool(args: {
     type: second.ok ? "success" : "error",
     text: `HTTP ${second.status} ${second.ok ? "receipt unlocked" : JSON.stringify(receipt)}`,
   });
-  if (second.ok && payToCheck.viaCheckout && receipt.feeAtomic && receipt.netToMerchantAtomic) {
+  if (second.ok && args.viaCheckout && receipt.feeAtomic && receipt.netToMerchantAtomic) {
     steps.push({
       type: "success",
       text: `Settled on ${payChain}: merchant ${exactAmount(String(receipt.netToMerchantAtomic))} ${challengeSymbol} + treasury fee ${exactAmount(String(receipt.feeAtomic))} ${challengeSymbol}, in one transaction`,
@@ -530,4 +625,138 @@ export async function payX402Tool(args: {
     });
   }
   return { steps, receipt };
+}
+
+/**
+ * External wallet: check the balance on the chosen chain, then hand back the
+ * unsigned authorization. Nothing is signed or broadcast here.
+ */
+async function prepareExternalSignature(args: {
+  steps: BuyerStep[];
+  slug: string;
+  skuId: string;
+  orderId: string;
+  buyerUid?: string;
+  challenge: PaymentRequired;
+  accept: PaymentRequirements;
+  payer: string;
+  payChain: string;
+  humanAmount: string;
+  viaCheckout: boolean;
+}): Promise<PayX402Result> {
+  const { steps, accept, payer, payChain } = args;
+  const symbol = String(accept.extra?.settleSymbol || config.tokenSymbol);
+  let balance: bigint | null = null;
+  try {
+    balance = await readTokenBalance({
+      network: accept.network,
+      rpcUrl: chainSettings(accept.network).rpcUrl,
+      asset: accept.asset,
+      owner: payer,
+    });
+  } catch {
+    balance = null;
+  }
+  const required = BigInt(accept.amount);
+  if (balance !== null) {
+    steps.push({
+      type: "chain",
+      text: `Passkey wallet ${shortAddr(payer)} · ${exactAmount(balance.toString())} ${symbol} on ${payChain}`,
+    });
+  }
+  if (balance !== null && balance < required) {
+    const shortfall = required - balance;
+    steps.push({
+      type: "error",
+      text: `Short ${exactAmount(shortfall.toString())} ${symbol} on ${payChain}. Top up from any chain, then pay.`,
+    });
+    return {
+      steps,
+      funding: {
+        network: accept.network,
+        chainLabel: payChain,
+        asset: accept.asset,
+        symbol,
+        address: payer,
+        balanceAtomic: balance.toString(),
+        requiredAtomic: required.toString(),
+        shortfallAtomic: shortfall.toString(),
+      },
+    };
+  }
+
+  const authorization = prepareAuthorization(payer, accept);
+  steps.push({
+    type: "chain",
+    text: `Authorization ready: ${args.humanAmount} from ${shortAddr(payer)} on ${payChain}. Waiting for the passkey wallet to sign`,
+  });
+  return {
+    steps,
+    pending: {
+      slug: args.slug,
+      skuId: args.skuId,
+      orderId: args.orderId,
+      buyerUid: args.buyerUid,
+      challenge: args.challenge,
+      accept,
+      authorization,
+      viaCheckout: args.viaCheckout,
+    },
+  };
+}
+
+/**
+ * Finish a payment the buyer's own wallet signed. The signature is checked
+ * against the authorization before anything is relayed, so a bad signature
+ * fails here instead of at the store.
+ */
+export async function submitX402Signature(args: {
+  /** This server's own origin. Never taken from the client. */
+  origin: string;
+  pending: PendingX402;
+  signature: Hex;
+}): Promise<PayX402Result> {
+  const { pending, signature } = args;
+  const steps: BuyerStep[] = [];
+  if (!/^[a-z0-9-]{1,64}$/.test(pending.slug) || !isSupportedNetwork(pending.accept.network)) {
+    steps.push({ type: "error", text: "Invalid pending payment" });
+    return { steps };
+  }
+  const payChain = chainLabelFor(pending.accept.network);
+  const typed = authorizationTypedData(pending.accept, pending.authorization);
+  const valid = await verifyTypedData({
+    address: getAddress(pending.authorization.from),
+    ...typed,
+    signature,
+  }).catch(() => false);
+  if (!valid) {
+    steps.push({ type: "error", text: "Passkey signature does not match the authorization" });
+    return { steps };
+  }
+  steps.push({
+    type: "chain",
+    text: `Passkey wallet signed ${typed.primaryType} on ${payChain} (no gas, no wallet popup)`,
+  });
+  steps.push({
+    type: "chain",
+    text: pending.viaCheckout
+      ? `Relayer submits BorneoCheckout.settle() on ${payChain}`
+      : `Relayer submits transferWithAuthorization on ${payChain}`,
+  });
+  const payload = assemblePaymentPayload(
+    pending.challenge,
+    pending.accept,
+    pending.authorization,
+    signature,
+  );
+  return await finishPurchase({
+    steps,
+    base: `${args.origin}/s/${pending.slug}`,
+    skuId: pending.skuId,
+    orderId: pending.orderId,
+    buyerUid: pending.buyerUid,
+    paymentHeader: encodePaymentSignatureHeader(payload),
+    accept: pending.accept,
+    viaCheckout: pending.viaCheckout,
+  });
 }
