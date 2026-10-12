@@ -1,3 +1,4 @@
+import { isAddress } from "viem";
 import { runBuyerAgent } from "@/lib/agents/buyer";
 import { config } from "@/lib/config";
 
@@ -6,6 +7,8 @@ export const runtime = "nodejs";
 type BuyerAgentBody = {
   message?: string;
   buyerUid?: string;
+  /** Passkey wallet address. The reply then carries `pending` to sign. */
+  buyerAddress?: string;
   quote?: {
     storeSlug?: string;
     skuId?: string;
@@ -44,6 +47,10 @@ export async function POST(request: Request) {
       message: body.message,
       quote,
       buyerUid: body.buyerUid?.trim() || undefined,
+      buyerAddress:
+        body.buyerAddress && isAddress(body.buyerAddress.trim())
+          ? body.buyerAddress.trim()
+          : undefined,
     });
     return Response.json(result);
   } catch (error) {

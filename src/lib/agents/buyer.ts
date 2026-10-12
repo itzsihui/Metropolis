@@ -3,9 +3,10 @@ import {
   type BuyerReceipt,
   type BuyerStep,
   type PayQuote,
+  type PayX402Result,
 } from "@/lib/agents/tools-buyer";
 
-export type { BuyerStep, BuyerReceipt, PayQuote };
+export type { BuyerStep, BuyerReceipt, PayQuote, PayX402Result };
 
 /**
  * Settle USDC / x402 from a locked quote.
@@ -17,20 +18,25 @@ export async function runBuyerAgent(args: {
   message?: string;
   quote?: PayQuote;
   buyerUid?: string;
-}): Promise<{
-  steps: BuyerStep[];
-  receipt?: BuyerReceipt;
-  llm?: "bedrock" | "deterministic" | "quote";
-}> {
+  /** Passkey wallet address: the browser signs, the server never does. */
+  buyerAddress?: string;
+}): Promise<
+  PayX402Result & {
+    llm?: "bedrock" | "deterministic" | "quote";
+  }
+> {
   if (args.quote?.storeSlug && args.quote?.skuId && args.quote?.price) {
     const result = await payX402Tool({
       origin: args.origin,
       buyerUid: args.buyerUid,
+      buyerAddress: args.buyerAddress,
       quote: {
         storeSlug: args.quote.storeSlug,
         skuId: args.quote.skuId,
         price: args.quote.price,
         merchantAddress: args.quote.merchantAddress,
+        settleAsset: args.quote.settleAsset,
+        settleSymbol: args.quote.settleSymbol,
       },
     });
     result.steps.unshift({
@@ -45,6 +51,7 @@ export async function runBuyerAgent(args: {
     origin: args.origin,
     message: args.message || "buy a hackathon shirt",
     buyerUid: args.buyerUid,
+    buyerAddress: args.buyerAddress,
   });
   fallback.steps.unshift({
     type: "info",
